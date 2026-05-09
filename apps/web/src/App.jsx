@@ -9,6 +9,8 @@ import OnlineStatusIndicator from './components/OnlineStatusIndicator.jsx';
 // Pages
 import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import SignupPage from './pages/SignupPage.jsx';
+import ParkingsPage from './pages/ParkingsPage.jsx';
 
 // Super Admin
 import SuperAdminDashboard from './pages/SuperAdminDashboard.jsx';
@@ -16,6 +18,7 @@ import SuperAdminDashboard from './pages/SuperAdminDashboard.jsx';
 // Admin
 import AdminAssociationDashboard from './pages/AdminAssociationDashboard.jsx';
 import MembersPage from './pages/MembersPage.jsx';
+import AgentsPage from './pages/AgentsPage.jsx';
 
 // Agent / Recouvreur
 import AgentDashboard from './pages/AgentDashboard.jsx';
@@ -32,6 +35,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
           
           {/* Super-Admin Routes */}
           <Route 
@@ -53,10 +57,26 @@ function App() {
             } 
           />
           <Route 
+            path="/parkings" 
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <ParkingsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/members" 
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <MembersPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/agents" 
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AgentsPage />
               </ProtectedRoute>
             } 
           />

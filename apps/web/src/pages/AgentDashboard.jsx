@@ -74,38 +74,41 @@ const AgentDashboard = () => {
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="space-y-5 flex-1 flex flex-col justify-center pb-8"
+          className="grid grid-cols-2 gap-4 flex-1 content-center pb-8"
         >
           <Link 
             to="/scanner"
-            className="w-full bg-primary text-primary-foreground rounded-3xl p-8 shadow-xl shadow-primary/20 hover:brightness-110 active:scale-[0.98] transition-all flex flex-col items-center justify-center gap-4 group border-b-4 border-primary-foreground/20"
+            className="col-span-2 bg-primary text-primary-foreground rounded-3xl p-8 shadow-xl hover:brightness-110 active:scale-[0.98] transition-all flex flex-col items-center justify-center gap-4 border-b-4 border-primary-foreground/20"
           >
-            <div className="w-20 h-20 rounded-full bg-background/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <div className="w-16 h-16 rounded-full bg-background/20 flex items-center justify-center">
               <ScanLine className="w-10 h-10 text-primary-foreground" />
             </div>
-            <div className="text-center">
-              <span className="block text-3xl font-extrabold mb-1">SCANNER QR</span>
-              <span className="block text-primary-foreground/80 font-medium">Identifier membre instantanément</span>
-            </div>
+            <span className="block text-3xl font-extrabold uppercase">Encaisser</span>
           </Link>
 
-          <div className="grid grid-cols-2 gap-4 mt-2">
-            <Link 
-              to="/members-list"
-              className="bg-secondary text-secondary-foreground rounded-2xl p-6 shadow-lg shadow-secondary/20 hover:brightness-110 active:scale-95 transition-all flex flex-col items-center text-center gap-3 border-b-4 border-background/20"
-            >
-              <Users className="w-8 h-8" />
-              <span className="font-bold text-lg leading-tight">Saisie Manuelle</span>
-            </Link>
-            
-            <Link 
-              to="/payment-history"
-              className="bg-card border border-border text-foreground rounded-2xl p-6 hover:bg-muted active:scale-95 transition-all flex flex-col items-center text-center gap-3 shadow-sm"
-            >
-               <History className="w-8 h-8 text-primary" />
-              <span className="font-bold text-lg leading-tight">Historique</span>
-            </Link>
-          </div>
+          <Link 
+            to="/members-list"
+            className="bg-secondary text-secondary-foreground rounded-2xl p-6 shadow-lg hover:brightness-110 active:scale-95 transition-all flex flex-col items-center text-center gap-3 border-b-4 border-background/20"
+          >
+            <Users className="w-8 h-8" />
+            <span className="font-bold text-xl leading-tight">Membres</span>
+          </Link>
+
+          <Link 
+            to="/late-payments"
+            className="bg-destructive text-destructive-foreground rounded-2xl p-6 shadow-lg hover:brightness-110 active:scale-95 transition-all flex flex-col items-center text-center gap-3 border-b-4 border-background/20"
+          >
+            <History className="w-8 h-8" />
+            <span className="font-bold text-xl leading-tight">Retards</span>
+          </Link>
+          
+          <Link 
+            to="/payment-history"
+            className="col-span-2 bg-card border border-border text-foreground rounded-2xl p-6 hover:bg-muted active:scale-95 transition-all flex flex-col items-center text-center gap-3 shadow-sm"
+          >
+            <History className="w-8 h-8 text-primary" />
+            <span className="font-bold text-xl leading-tight">Statistiques</span>
+          </Link>
         </motion.div>
       </main>
     </div>

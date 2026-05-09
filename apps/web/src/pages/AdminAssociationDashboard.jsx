@@ -6,7 +6,7 @@ import Header from '@/components/Header.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Link } from 'react-router-dom';
 import { generateDailyReport } from '@/utils/DailyReportPDF.jsx';
-import { Users, CreditCard, MapPin, BarChart3, Loader2, ArrowUpRight, AlertCircle, Percent, FileText } from 'lucide-react';
+import { Users, CreditCard, MapPin, BarChart3, Loader2, ArrowUpRight, AlertCircle, Percent, FileText, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AdminAssociationDashboard = () => {
@@ -146,19 +146,22 @@ const AdminAssociationDashboard = () => {
         <aside className="w-64 border-r border-border bg-card/80 backdrop-blur z-10 hidden md:flex flex-col">
           <div className="p-6 flex-1">
             <h2 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-4">Panel Association</h2>
-            <nav className="space-y-2">
+            <nav className="space-y-1">
               <Link to="/dashboard" className="flex items-center gap-3 px-3 py-2.5 bg-primary/20 text-primary rounded-lg font-medium transition-colors">
                 <BarChart3 className="w-4 h-4" /> Vue d'ensemble
               </Link>
               <Link to="/members" className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
                 <Users className="w-4 h-4" /> Gestion Membres
               </Link>
-              <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
+              <Link to="/parkings" className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
                 <MapPin className="w-4 h-4" /> Parkings
-              </a>
-              <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
+              </Link>
+              <Link to="/agents" className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
+                <UserPlus className="w-4 h-4" /> Agents
+              </Link>
+              <Link to="/members" className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
                 <BarChart3 className="w-4 h-4" /> Rapports
-              </a>
+              </Link>
             </nav>
           </div>
         </aside>
@@ -184,6 +187,34 @@ const AdminAssociationDashboard = () => {
                 </Link>
               </div>
             </header>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+              <Link to="/members" className="bg-card border border-border rounded-xl p-4 hover:bg-muted/50 transition-colors flex flex-col items-center gap-2 text-center group">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <Users className="w-5 h-5 text-primary" />
+                </div>
+                <span className="text-sm font-semibold text-foreground">Membres</span>
+              </Link>
+              <Link to="/parkings" className="bg-card border border-border rounded-xl p-4 hover:bg-muted/50 transition-colors flex flex-col items-center gap-2 text-center group">
+                <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center group-hover:bg-secondary/20 transition-colors">
+                  <MapPin className="w-5 h-5 text-secondary" />
+                </div>
+                <span className="text-sm font-semibold text-foreground">Parkings</span>
+              </Link>
+              <Link to="/agents" className="bg-card border border-border rounded-xl p-4 hover:bg-muted/50 transition-colors flex flex-col items-center gap-2 text-center group">
+                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                  <UserPlus className="w-5 h-5 text-blue-400" />
+                </div>
+                <span className="text-sm font-semibold text-foreground">Agents</span>
+              </Link>
+              <button onClick={handleExportReport} disabled={isGeneratingPDF} className="bg-card border border-border rounded-xl p-4 hover:bg-muted/50 transition-colors flex flex-col items-center gap-2 text-center group disabled:opacity-60">
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-muted/80 transition-colors">
+                  {isGeneratingPDF ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : <FileText className="w-5 h-5 text-muted-foreground" />}
+                </div>
+                <span className="text-sm font-semibold text-foreground">Rapport</span>
+              </button>
+            </div>
 
             {/* Top Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

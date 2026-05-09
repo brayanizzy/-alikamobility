@@ -4,22 +4,27 @@ import Header from '@/components/Header.jsx';
 import PaymentForm from '@/components/PaymentForm.jsx';
 import { Html5Qrcode } from 'html5-qrcode';
 import pb from '@/lib/pocketbaseClient';
+import { useAuth } from '@/contexts/AuthContext.jsx';
 import { isOnline, getCachedData, cacheData } from '@/utils/OfflineService.js';
-import { Loader2, ScanLine, AlertTriangle, Flashlight, History, Trash2 } from 'lucide-react';
+import { validateQrSecret } from '@/utils/qrUtils.js';
+import { Loader2, ScanLine, AlertTriangle, Flashlight, History, Trash2, ShieldAlert, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ScannerPage = () => {
+  const { currentUser } = useAuth();
   const [isScanning, setIsScanning] = useState(true);
   const [scannedMember, setScannedMember] = useState(null);
+  const [memberChecks, setMemberChecks] = useState(null); // fraud checks result
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [generatedReceipt, setGeneratedReceipt] = useState(null);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [scanHistory, setScanHistory] = useState([]);
   
   const qrRef = useRef(null);
 
-  // Audio setup for scan beep
+  // Audio beep
   const playBeep = () => {
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -33,7 +38,23 @@ const ScannerPage = () => {
       gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
       oscillator.start();
       oscillator.stop(audioCtx.currentTime + 0.1);
-    } catch(e) {} // Ignore audio errors
+    } catch(e) {}
+  };
+
+  const playError = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.type = 'square';
+      oscillator.frequency.value = 300;
+      gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.3);
+    } catch(e) {}
   };
 
   useEffect(() => {
@@ -41,8 +62,11 @@ const ScannerPage = () => {
     setScanHistory(hist);
     
     // Cache members for offline support
-    if (isOnline()) {
-      pb.collection('members').getFullList({ $autoCancel: false }).then(res => {
+    if (isOnline() && currentUser?.organization_id) {
+      pb.collection('members').getFullList({ 
+        filter: `organization_id = "${currentUser.organization_id}"`,
+        $autoCancel: false 
+      }).then(res => {
         cacheData('members_list', res);
       }).catch(e => console.error('Failed to cache members', e));
     }
@@ -96,40 +120,125 @@ const ScannerPage = () => {
   };
 
   const addToHistory = (member) => {
-    const newItem = { id: crypto.randomUUID(), memberName: member.name, timestamp: Date.now() };
-    const newHist = [newItem, ...scanHistory].slice(0, 20); // Keep last 20
+    const newItem = { id: crypto.randomUUID(), memberName: member.name, memberCode: member.member_code, timestamp: Date.now() };
+    const newHist = [newItem, ...scanHistory].slice(0, 20);
     setScanHistory(newHist);
     localStorage.setItem('alika_scan_history', JSON.stringify(newHist));
+  };
+
+  /**
+   * Run fraud/validation checks on the scanned member
+   */
+  const runMemberChecks = async (member) => {
+    const checks = {
+      isActive: member.status === 'active',
+      alreadyPaidToday: false,
+      hasDept: (member.debt_amount || member.debt_balance || 0) > 0,
+      debtAmount: member.debt_amount || member.debt_balance || 0,
+      qrValid: true,
+      warnings: [],
+      errors: [],
+    };
+
+    // Check if already paid today
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+      if (isOnline()) {
+        const todayPayments = await pb.collection('payments').getList(1, 1, {
+          filter: `member_id = "${member.id}" && payment_date >= "${today}" && payment_date < "${tomorrowStr}" && status = "paid"`,
+          $autoCancel: false
+        });
+        checks.alreadyPaidToday = todayPayments.totalItems > 0;
+      }
+    } catch (err) {
+      console.warn('Could not check today payments', err);
+    }
+
+    // Build warnings/errors
+    if (!checks.isActive) {
+      checks.errors.push('⛔ Membre SUSPENDU — Paiement interdit');
+    }
+    if (checks.alreadyPaidToday) {
+      checks.warnings.push('⚠️ Déjà payé aujourd\'hui — Doublon possible');
+    }
+    if (checks.hasDept) {
+      checks.warnings.push(`💰 Dette en cours : ${checks.debtAmount.toLocaleString()} XAF`);
+    }
+
+    return checks;
   };
 
   const handleScanSuccess = async (decodedText) => {
     if (isLoading || !isScanning) return;
     
-    playBeep();
     setIsScanning(false);
     setIsLoading(true);
     setError('');
+    setMemberChecks(null);
 
     try {
-      const parts = decodedText.split('|');
-      let targetId = parts[0]; 
-      
-      if (!targetId) throw new Error("Format QR Invalide");
-
       let member = null;
-      if (isOnline()) {
-        member = await pb.collection('members').getOne(targetId, { $autoCancel: false });
+      
+      // Try new QR format first: "ALIKA-GOM-000245|HASH"
+      if (decodedText.includes('ALIKA-')) {
+        const validation = validateQrSecret(decodedText, currentUser.organization_id);
+        
+        if (!validation.valid) {
+          playError();
+          throw new Error("QR Code invalide ou falsifié. Vérification de signature échouée.");
+        }
+
+        const memberCode = validation.memberCode;
+        
+        if (isOnline()) {
+          const res = await pb.collection('members').getList(1, 1, {
+            filter: `member_code = "${memberCode}" && organization_id = "${currentUser.organization_id}"`,
+            $autoCancel: false
+          });
+          if (res.totalItems === 0) throw new Error(`Membre ${memberCode} introuvable`);
+          member = res.items[0];
+        } else {
+          const cached = getCachedData('members_list') || [];
+          member = cached.find(m => m.member_code === memberCode);
+          if (!member) throw new Error("Membre introuvable hors ligne");
+        }
       } else {
-        const cached = getCachedData('members_list') || [];
-        member = cached.find(m => m.id === targetId);
-        if (!member) throw new Error("Membre introuvable hors ligne");
+        // Fallback: old format "member_id|org_id"
+        const parts = decodedText.split('|');
+        let targetId = parts[0];
+        if (!targetId) throw new Error("Format QR Invalide");
+
+        if (isOnline()) {
+          member = await pb.collection('members').getOne(targetId, { $autoCancel: false });
+        } else {
+          const cached = getCachedData('members_list') || [];
+          member = cached.find(m => m.id === targetId);
+          if (!member) throw new Error("Membre introuvable hors ligne");
+        }
       }
       
+      // Run fraud checks
+      const checks = await runMemberChecks(member);
+      setMemberChecks(checks);
+      
+      playBeep();
       setScannedMember(member);
       addToHistory(member);
-      toast.success("Membre identifié !");
+      
+      if (checks.errors.length > 0) {
+        toast.error(checks.errors[0]);
+      } else if (checks.warnings.length > 0) {
+        toast.warning(checks.warnings[0]);
+      } else {
+        toast.success("Membre identifié !");
+      }
     } catch (err) {
       console.error(err);
+      playError();
       setError(err.message || "Membre non trouvé ou QR invalide.");
     } finally {
       setIsLoading(false);
@@ -138,6 +247,8 @@ const ScannerPage = () => {
 
   const retryScan = () => {
     setScannedMember(null);
+    setMemberChecks(null);
+    setGeneratedReceipt(null);
     setError('');
     setIsScanning(true);
   };
@@ -171,7 +282,7 @@ const ScannerPage = () => {
         {isLoading && (
           <div className="flex-1 flex flex-col items-center justify-center">
             <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-            <p className="text-foreground font-medium text-lg">Recherche du membre...</p>
+            <p className="text-foreground font-medium text-lg">Vérification du membre...</p>
           </div>
         )}
 
@@ -191,12 +302,12 @@ const ScannerPage = () => {
           </div>
         )}
 
-        {scannedMember && !showPaymentForm && (
+        {scannedMember && !showPaymentForm && !generatedReceipt && (
           <div className="flex-1 flex flex-col animate-in zoom-in-95 duration-300">
-            <div className="bg-card border border-border rounded-3xl p-6 shadow-xl mb-6 relative overflow-hidden">
+            <div className="bg-card border border-border rounded-3xl p-6 shadow-xl mb-4 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -mr-8 -mt-8"></div>
               
-              <div className="flex flex-col items-center text-center mb-6 relative z-10">
+              <div className="flex flex-col items-center text-center mb-4 relative z-10">
                 {scannedMember.photo ? (
                   <img src={pb.files.getUrl(scannedMember, scannedMember.photo)} alt="Photo" className="w-24 h-24 rounded-full object-cover border-4 border-primary shadow-lg mb-4" />
                 ) : (
@@ -205,12 +316,15 @@ const ScannerPage = () => {
                   </div>
                 )}
                 <h2 className="text-2xl font-extrabold text-foreground">{scannedMember.name}</h2>
+                {scannedMember.member_code && (
+                  <p className="font-mono text-sm text-muted-foreground mt-1">{scannedMember.member_code}</p>
+                )}
                 <span className={`mt-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${scannedMember.status === 'active' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`}>
                   {scannedMember.status}
                 </span>
               </div>
               
-              <div className="space-y-4 bg-muted/30 p-4 rounded-2xl relative z-10">
+              <div className="space-y-3 bg-muted/30 p-4 rounded-2xl relative z-10">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Plaque</span>
                   <span className="font-bold text-foreground font-mono">{scannedMember.moto_number}</span>
@@ -219,13 +333,45 @@ const ScannerPage = () => {
                   <span className="text-sm text-muted-foreground">Téléphone</span>
                   <span className="font-bold text-foreground">{scannedMember.phone}</span>
                 </div>
+                {scannedMember.daily_fee > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Cotisation</span>
+                    <span className="font-bold text-primary">{scannedMember.daily_fee} XAF / jour</span>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="mt-auto grid grid-cols-1 gap-4">
+            {/* Fraud Check Alerts */}
+            {memberChecks && (memberChecks.errors.length > 0 || memberChecks.warnings.length > 0) && (
+              <div className="space-y-2 mb-4">
+                {memberChecks.errors.map((msg, i) => (
+                  <div key={`err-${i}`} className="flex items-center gap-3 bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-3">
+                    <ShieldAlert className="w-5 h-5 text-destructive shrink-0" />
+                    <span className="text-sm font-bold text-destructive">{msg}</span>
+                  </div>
+                ))}
+                {memberChecks.warnings.map((msg, i) => (
+                  <div key={`warn-${i}`} className="flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3">
+                    <AlertCircle className="w-5 h-5 text-yellow-500 shrink-0" />
+                    <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">{msg}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* No warnings = green light */}
+            {memberChecks && memberChecks.errors.length === 0 && memberChecks.warnings.length === 0 && (
+              <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3 mb-4">
+                <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+                <span className="text-sm font-bold text-green-600 dark:text-green-400">✓ Aucune anomalie détectée</span>
+              </div>
+            )}
+
+            <div className="mt-auto grid grid-cols-1 gap-3">
               <button 
                 onClick={() => setShowPaymentForm(true)}
-                disabled={scannedMember.status !== 'active'}
+                disabled={memberChecks?.errors?.length > 0}
                 className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-lg hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:pointer-events-none"
               >
                 Enregistrer Paiement
@@ -240,11 +386,11 @@ const ScannerPage = () => {
           </div>
         )}
 
-        {/* Scan History (only show when scanning and history exists) */}
+        {/* Scan History */}
         {isScanning && !isLoading && scanHistory.length > 0 && (
           <div className="mt-8 bg-card border border-border rounded-2xl p-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-foreground flex items-center gap-2"><History className="w-4 h-4"/> Historique Récent</h3>
+              <h3 className="font-semibold text-foreground flex items-center gap-2"><Clock className="w-4 h-4"/> Historique Récent</h3>
               <button onClick={() => {setScanHistory([]); localStorage.removeItem('alika_scan_history');}} className="text-muted-foreground hover:text-destructive">
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -252,7 +398,10 @@ const ScannerPage = () => {
             <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
               {scanHistory.map(item => (
                 <div key={item.id} className="flex justify-between items-center text-sm p-2 rounded-lg bg-muted/50">
-                  <span className="font-medium text-foreground">{item.memberName}</span>
+                  <div>
+                    <span className="font-medium text-foreground">{item.memberName}</span>
+                    {item.memberCode && <span className="text-xs text-muted-foreground ml-2 font-mono">{item.memberCode}</span>}
+                  </div>
                   <span className="text-muted-foreground text-xs">{new Date(item.timestamp).toLocaleTimeString()}</span>
                 </div>
               ))}
@@ -263,18 +412,71 @@ const ScannerPage = () => {
       </main>
 
       {/* Payment Modal */}
-      {showPaymentForm && scannedMember && (
+      {showPaymentForm && scannedMember && !generatedReceipt && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm">
           <div className="bg-card border-t sm:border border-border rounded-t-3xl sm:rounded-3xl w-full max-w-md shadow-2xl p-6 pb-12 sm:pb-6 relative animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95">
             <h2 className="text-2xl font-bold text-foreground mb-6">Nouveau Paiement</h2>
             <PaymentForm 
               member={scannedMember} 
               onClose={() => setShowPaymentForm(false)}
-              onSuccess={() => {
+              onSuccess={(record) => {
                 setShowPaymentForm(false);
-                retryScan();
+                setGeneratedReceipt(record);
               }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Modal */}
+      {generatedReceipt && scannedMember && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-background/90 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-3xl w-full max-w-sm shadow-2xl p-8 relative animate-in zoom-in-90 flex flex-col items-center">
+            <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-6">
+              <CheckCircle2 className="w-10 h-10 text-green-500" />
+            </div>
+            <h2 className="text-2xl font-extrabold text-foreground mb-1">Reçu de Paiement</h2>
+            <p className="text-muted-foreground mb-8">N° {generatedReceipt.id.substring(0, 8).toUpperCase()}</p>
+            
+            <div className="w-full space-y-4 bg-muted/30 p-6 rounded-2xl mb-8 border border-border/50">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Membre</span>
+                <span className="font-bold text-foreground">{scannedMember.name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Plaque</span>
+                <span className="font-bold text-foreground font-mono">{scannedMember.moto_number}</span>
+              </div>
+              {scannedMember.member_code && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Code</span>
+                  <span className="font-bold text-foreground font-mono text-sm">{scannedMember.member_code}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Date</span>
+                <span className="font-bold text-foreground">{new Date().toLocaleDateString('fr-FR')}</span>
+              </div>
+              <div className="pt-4 border-t border-border flex justify-between items-center">
+                <span className="text-lg font-bold text-foreground">Montant</span>
+                <span className="text-2xl font-extrabold text-primary">{generatedReceipt.amount || 5000} XAF</span>
+              </div>
+            </div>
+
+            <div className="w-full flex gap-3">
+              <button 
+                onClick={() => window.print()}
+                className="flex-1 py-4 rounded-xl bg-muted text-foreground font-bold hover:bg-muted/80 transition-all"
+              >
+                Imprimer
+              </button>
+              <button 
+                onClick={retryScan}
+                className="flex-[2] py-4 rounded-xl bg-primary text-primary-foreground font-bold text-xl shadow-lg hover:brightness-110 active:scale-95 transition-all"
+              >
+                Terminer
+              </button>
+            </div>
           </div>
         </div>
       )}

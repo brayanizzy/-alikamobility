@@ -107,9 +107,12 @@ const LoginPage = () => {
           </form>
           
           <div className="mt-8 text-center border-t border-border pt-8">
-            <p className="text-sm text-muted-foreground">
-              Need access? Contact your association administrator.
+            <p className="text-sm text-muted-foreground mb-2">
+              Votre association n'est pas encore sur Alika ?
             </p>
+            <Link to="/signup" className="text-primary font-bold hover:underline">
+              Inscrire mon association
+            </Link>
           </div>
         </div>
       </div>
