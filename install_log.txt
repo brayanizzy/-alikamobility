@@ -1,9 +1,0 @@
-===== INSTALLATION ALIKA MOBILITY =====
-Version Node:
-
-Installation des dependances...
-Code retour: 0
-
-[ERREUR] node_modules n existe pas
-
-===== FIN INSTALLATION =====

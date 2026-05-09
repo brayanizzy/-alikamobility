@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Very Dark Background #0a0e27 -> HSL: 232 59% 10% */
+    --background: 232 59% 10%;
+    --foreground: 0 0% 100%;
+
+    /* Cyan Primary #00D9FF -> HSL: 189 100% 50% */
+    --primary: 189 100% 50%;
+    --primary-foreground: 232 59% 10%;
+
+    /* Gold Secondary #D4AF37 -> HSL: 46 65% 52% */
+    --secondary: 46 65% 52%;
+    --secondary-foreground: 232 59% 10%;
+
+    /* Semantic Surfaces */
+    --card: 232 40% 15%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 232 40% 15%;
+    --popover-foreground: 0 0% 100%;
+
+    --muted: 232 20% 25%;
+    --muted-foreground: 232 20% 70%;
+    
+    --accent: 232 30% 20%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 232 30% 20%;
+    --input: 232 20% 25%;
+    --ring: 189 100% 50%; /* Cyan focus ring */
+    
+    --radius: 1rem;
+  }
+  
+  .dark {
+    /* Alika Mobility forces Dark Mode universally for high contrast premium feel */
+    --background: 232 59% 10%;
+    --foreground: 0 0% 100%;
+    --primary: 189 100% 50%;
+    --primary-foreground: 232 59% 10%;
+    --secondary: 46 65% 52%;
+    --secondary-foreground: 232 59% 10%;
+    --card: 232 40% 15%;
+    --card-foreground: 0 0% 100%;
+    --popover: 232 40% 15%;
+    --popover-foreground: 0 0% 100%;
+    --muted: 232 20% 25%;
+    --muted-foreground: 232 20% 70%;
+    --accent: 232 30% 20%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 232 30% 20%;
+    --input: 232 20% 25%;
+    --ring: 189 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Outfit', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}
