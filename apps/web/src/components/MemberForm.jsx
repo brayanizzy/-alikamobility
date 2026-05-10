@@ -51,28 +51,37 @@ const MemberForm = ({ existingMember, onClose, onSuccess }) => {
     }
 
     const fetchData = async () => {
+      // Fetch parkings (critical for form)
       try {
-        const [parkingsRes, membersCountRes, orgRes] = await Promise.all([
-          pb.collection('parkings').getFullList({
-            filter: `organization_id = "${currentUser.organization_id}"`,
-            $autoCancel: false
-          }),
-          pb.collection('members').getList(1, 1, {
-            filter: `organization_id = "${currentUser.organization_id}"`,
-            $autoCancel: false
-          }),
-          pb.collection('organizations').getOne(currentUser.organization_id, { $autoCancel: false })
-        ]);
-        
+        const parkingsRes = await pb.collection('parkings').getFullList({
+          filter: `organization_id = "${currentUser.organization_id}"`,
+          $autoCancel: false
+        });
         setParkings(parkingsRes);
-        setMemberCount(membersCountRes.totalItems);
-        setOrgCity(orgRes.city || '');
-        
         if (!formData.parking_id && parkingsRes.length > 0) {
           setFormData(prev => ({ ...prev, parking_id: parkingsRes[0].id }));
         }
       } catch (err) {
-        console.error('Error fetching data:', err);
+        console.error('Error fetching parkings:', err);
+      }
+
+      // Fetch member count (for code generation)
+      try {
+        const membersCountRes = await pb.collection('members').getList(1, 1, {
+          filter: `organization_id = "${currentUser.organization_id}"`,
+          $autoCancel: false
+        });
+        setMemberCount(membersCountRes.totalItems);
+      } catch (err) {
+        console.error('Error fetching member count:', err);
+      }
+
+      // Fetch org info (for city prefix in QR code)
+      try {
+        const orgRes = await pb.collection('organizations').getOne(currentUser.organization_id, { $autoCancel: false });
+        setOrgCity(orgRes.city || '');
+      } catch (err) {
+        console.error('Error fetching org:', err);
       }
     };
     fetchData();
