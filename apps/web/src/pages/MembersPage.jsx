@@ -1,11 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header.jsx';
 import MemberForm from '@/components/MemberForm.jsx';
 import MemberCardPreview from '@/components/MemberCardPreview.jsx';
+import PaginationControls from '@/components/PaginationControls.jsx';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import { Plus, Search, Filter, CreditCard, Edit2, Ban, CheckCircle, Loader2, QrCode } from 'lucide-react';
+import { isOfficeCollector } from '@/utils/roles.js';
+import { Plus, Search, Filter, Edit2, Ban, CheckCircle, Loader2, QrCode, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const MembersPage = () => {
@@ -14,20 +16,36 @@ const MembersPage = () => {
   const [parkings, setParkings] = useState({});
   const [orgName, setOrgName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   
   // Modal states
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
-  const [cardMember, setCardMember] = useState(null); // member whose card to preview
+  const [cardMember, setCardMember] = useState(null);
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async (p = 1) => {
     setIsLoading(true);
     try {
+      setLoadError('');
+      const perPage = 50;
+      let filter = `organization_id = "${currentUser.organization_id}"`;
+      if (currentUser.role === 'agent' && currentUser.parking_id) {
+        filter += ` && parking_id = "${currentUser.parking_id}"`;
+      }
+
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filter += ` && (name ~"${q}" || phone ~"${q}" || moto_number ~"${q}")`;
+      }
+
       const [membersRes, parkingsRes, orgRes] = await Promise.all([
-        pb.collection('members').getFullList({
-          filter: `organization_id = "${currentUser.organization_id}"`,
+        pb.collection('members').getList(p, perPage, {
+          filter: filter,
           sort: '-created',
           $autoCancel: false
         }),
@@ -35,47 +53,51 @@ const MembersPage = () => {
           filter: `organization_id = "${currentUser.organization_id}"`,
           $autoCancel: false
         }),
-        pb.collection('organizations').getOne(currentUser.organization_id, { $autoCancel: false })
+        pb.collection('organizations').getOne(currentUser.organization_id, { $autoCancel: false }).catch(() => null)
       ]);
 
-      setMembers(membersRes);
-      setOrgName(orgRes.name || '');
-      
+      setMembers(membersRes.items || []);
+      setTotalPages(membersRes.totalPages || 1);
+      setTotalItems(membersRes.totalItems || 0);
+      setPage(p);
+      setOrgName(orgRes?.name || '');
+
       const pMap = {};
-      parkingsRes.forEach(p => { pMap[p.id] = p.name; });
+      (parkingsRes || []).forEach(p => { pMap[p.id] = p.name; });
       setParkings(pMap);
     } catch (err) {
       console.error(err);
+      setLoadError('Erreur connexion. Impossible de charger les membres pour le moment.');
       toast.error('Erreur lors du chargement des membres');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentUser, searchQuery]);
 
   useEffect(() => {
-    fetchMembers();
-  }, [currentUser.organization_id]);
+    setPage(1);
+    fetchMembers(1);
+  }, [currentUser.organization_id, currentUser.parking_id, currentUser.role, searchQuery]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    fetchMembers(newPage);
+  };
 
   const handleToggleStatus = async (member) => {
     const newStatus = member.status === 'active' ? 'suspended' : 'active';
     try {
       await pb.collection('members').update(member.id, { status: newStatus }, { $autoCancel: false });
       toast.success(`Statut mis à jour: ${newStatus}`);
-      fetchMembers();
+      fetchMembers(page);
     } catch (err) {
       toast.error('Erreur lors de la mise à jour');
     }
   };
 
-  const filteredMembers = members.filter(m => {
-    const q = searchQuery.toLowerCase();
-    const matchesSearch = m.name.toLowerCase().includes(q) || 
-                          m.phone.includes(searchQuery) || 
-                          m.moto_number.toLowerCase().includes(q) ||
-                          (m.member_code || '').toLowerCase().includes(q);
-    const matchesStatus = statusFilter === 'all' || m.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredMembers = statusFilter === 'all'
+    ? members
+    : members.filter(m => m.status === statusFilter);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -85,8 +107,11 @@ const MembersPage = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-foreground tracking-tight mb-2">Gestion des Membres</h1>
+            {isOfficeCollector(currentUser) && (
+              <p className="text-xs font-bold text-primary uppercase tracking-wide mb-1">Récolteur bureau - parking assigné</p>
+            )}
             <p className="text-muted-foreground">
-              {members.length} membre{members.length !== 1 ? 's' : ''} enregistré{members.length !== 1 ? 's' : ''}
+              {totalItems} membre{totalItems !== 1 ? 's' : ''} enregistré{totalItems !== 1 ? 's' : ''}
             </p>
           </div>
           <button 
@@ -122,7 +147,15 @@ const MembersPage = () => {
           </div>
         </div>
 
-        {isLoading ? (
+        {loadError ? (
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-6 text-destructive flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Chargement impossible</p>
+              <p className="text-sm opacity-90">{loadError}</p>
+            </div>
+          </div>
+        ) : isLoading ? (
           <div className="py-24 flex justify-center">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
@@ -216,6 +249,7 @@ const MembersPage = () => {
                 </tbody>
               </table>
             </div>
+            <PaginationControls page={page} totalPages={totalPages} totalItems={totalItems} onPageChange={handlePageChange} />
           </div>
         )}
       </main>
