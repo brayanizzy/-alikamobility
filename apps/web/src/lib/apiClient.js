@@ -209,6 +209,37 @@ class ApiClient {
     return `${API_BASE}/files/${colName}/${record.id}/${filename}`;
   }
 
+  async request(path, options = {}) {
+    const { method = 'GET', params, body, headers: extraHeaders } = options;
+    let url = `${API_BASE}${path}`;
+    if (params) {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.set(k, v);
+      });
+      const qstr = qs.toString();
+      if (qstr) url += '?' + qstr;
+    }
+    const headers = { 'Authorization': `Bearer ${this.authStore.token}` };
+    if (body && !(body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
+    Object.assign(headers, extraHeaders);
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const err = new Error(data.error || data.message || 'Request failed');
+      err.status = res.status;
+      err.response = data;
+      throw err;
+    }
+    return data;
+  }
+
   get files() {
     return {
       getUrl: (record, filename) => this.getFileUrl(record, filename),

@@ -103,6 +103,9 @@ const CardVerifyPage = lazy(() => import('./pages/CardVerifyPage.jsx'));
 const OfflineSyncPage = lazy(() => import('./pages/OfflineSyncPage.jsx'));
 const OfflinePaymentPage = lazy(() => import('./pages/OfflinePaymentPage.jsx'));
 
+// Module 9 - Reports
+const CashReportPage = lazy(() => import('./pages/CashReportPage.jsx'));
+
 const AppFallback = () => (
   <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
     <div className="text-center">
@@ -174,6 +177,14 @@ function AppContent() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/cashier"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'agent']} allowedAgentTypes={[AGENT_TYPES.OFFICE_COLLECTOR]}>
+                <CashReportPage />
               </ProtectedRoute>
             }
           />

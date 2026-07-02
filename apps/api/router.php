@@ -7,6 +7,7 @@ require_once __DIR__ . '/files.php';
 require_once __DIR__ . '/email.php';
 require_once __DIR__ . '/notifications.php';
 require_once __DIR__ . '/card-security.php';
+require_once __DIR__ . '/reports.php';
 
 $allowedOrigin = getAllowedOrigin();
 header('Access-Control-Allow-Origin: ' . $allowedOrigin);
@@ -37,6 +38,13 @@ try {
         'POST /finance/pay-debt' => 'handlePayDebt',
         'GET /cards/verify' => 'handleCardVerify',
         'GET /cards/secure-url' => 'handleCardSecureUrl',
+        'GET /reports/overview' => 'handleReportsOverview',
+        'GET /reports/payments' => 'handleReportsPayments',
+        'GET /reports/debts' => 'handleReportsDebts',
+        'GET /reports/transport' => 'handleReportsTransport',
+        'GET /reports/members' => 'handleReportsMembers',
+        'GET /reports/agent-performance' => 'handleReportsAgentPerformance',
+        'GET /reports/cashier' => 'handleReportsCashier',
     ];
 
     $key = "$method $path";

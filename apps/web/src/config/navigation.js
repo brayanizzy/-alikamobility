@@ -22,6 +22,7 @@ export const NAV_ITEMS = {
       { label: 'Parkings', path: '/parkings', icon: MapPin },
       { label: 'Agents', path: '/agents', icon: UserCog },
       { label: 'Rapports', path: '/reports', icon: BarChart3 },
+      { label: 'Rapport caisse', path: '/reports/cashier', icon: DollarSign },
       { label: 'Notifications', path: '/notifications', icon: Bell },
     ],
     transport: [
