@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Header from '@/components/Header.jsx';
 import {
   getQueueItems, getSyncSummary, triggerSync,
   retryAllFailed, clearSyncedItems, formatLastSync,
-  isOnline, getLastSyncTimestamp,
+  isOnline, getLastSyncTimestamp, retryQueueItem,
 } from '@/utils/SyncService.js';
 import { formatCurrency } from '@/utils/currency.js';
 import NetworkStatusBadge from '@/components/offline/NetworkStatusBadge.jsx';
@@ -48,13 +48,14 @@ const OfflineSyncPage = () => {
     loadData();
     const handleChange = () => loadData();
     const handleSyncEnd = () => { setSyncing(false); loadData(); };
+    const handleSyncError = () => setSyncing(false);
     window.addEventListener('alika:sync-count-changed', handleChange);
     window.addEventListener('alika:sync-end', handleSyncEnd);
-    window.addEventListener('alika:sync-error', () => setSyncing(false));
+    window.addEventListener('alika:sync-error', handleSyncError);
     return () => {
       window.removeEventListener('alika:sync-count-changed', handleChange);
       window.removeEventListener('alika:sync-end', handleSyncEnd);
-      window.removeEventListener('alika:sync-error', () => setSyncing(false));
+      window.removeEventListener('alika:sync-error', handleSyncError);
     };
   }, []);
 
@@ -232,7 +233,6 @@ const OfflineSyncPage = () => {
                   {item.sync_status === 'failed' && (
                     <button
                       onClick={async () => {
-                        const { retryQueueItem } = await import('@/utils/SyncService.js');
                         await retryQueueItem(item.id);
                         toast.success('Relancé');
                         loadData();

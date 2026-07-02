@@ -1,27 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isOnline, getPendingSyncCount } from '@/utils/OfflineService.js';
 import { Wifi, WifiOff, RefreshCw, AlertTriangle, Upload } from 'lucide-react';
 
-const NetworkStatusBadge = ({ showLabel = true, showCount = true, showSync = true, className = '' }) => {
+const NetworkStatusBadge = ({ showLabel = true, showCount = true, className = '' }) => {
   const [status, setStatus] = useState(isOnline() ? 'online' : 'offline');
   const [pendingCount, setPendingCount] = useState(0);
-  const [lastSyncLabel, setLastSyncLabel] = useState('');
+  const mountedRef = useRef(true);
 
   const refresh = async () => {
     const count = await getPendingSyncCount();
-    setPendingCount(count);
+    if (mountedRef.current) setPendingCount(count);
   };
 
   useEffect(() => {
+    mountedRef.current = true;
     refresh();
 
-    const handleOnline = () => { setStatus('online'); refresh(); };
-    const handleOffline = () => setStatus('offline');
-    const handleSyncStart = () => setStatus('syncing');
-    const handleSyncEnd = () => { setStatus(isOnline() ? 'online' : 'offline'); refresh(); };
-    const handleSyncError = () => { setStatus('error'); setTimeout(() => setStatus(isOnline() ? 'online' : 'offline'), 5000); };
-    const handleCountChanged = () => refresh();
+    const handleOnline = () => { if (mountedRef.current) { setStatus('online'); refresh(); } };
+    const handleOffline = () => { if (mountedRef.current) setStatus('offline'); };
+    const handleSyncStart = () => { if (mountedRef.current) setStatus('syncing'); };
+    const handleSyncEnd = () => { if (mountedRef.current) { setStatus(isOnline() ? 'online' : 'offline'); refresh(); } };
+    const handleSyncError = () => {
+      if (!mountedRef.current) return;
+      setStatus('error');
+      const timer = setTimeout(() => { if (mountedRef.current) setStatus(isOnline() ? 'online' : 'offline'); }, 5000);
+      timers.push(timer);
+    };
+    const handleCountChanged = () => { if (mountedRef.current) refresh(); };
+    const timers = [];
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -31,6 +38,8 @@ const NetworkStatusBadge = ({ showLabel = true, showCount = true, showSync = tru
     window.addEventListener('alika:sync-count-changed', handleCountChanged);
 
     return () => {
+      mountedRef.current = false;
+      timers.forEach(clearTimeout);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('alika:sync-start', handleSyncStart);
