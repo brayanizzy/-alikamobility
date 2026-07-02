@@ -2,13 +2,18 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import pb from '@/lib/pocketbaseClient';
 import Header from '@/components/Header.jsx';
+import AppSidebar from '@/components/AppSidebar.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Link } from 'react-router-dom';
 import { generateDailyReport } from '@/utils/DailyReportPDF.jsx';
+import StatCard from '@/components/dashboard/StatCard.jsx';
+import QuickActionCard from '@/components/dashboard/QuickActionCard.jsx';
+import RecentActivityList from '@/components/dashboard/RecentActivityList.jsx';
+import AlertPanel from '@/components/dashboard/AlertPanel.jsx';
 import {
-  Users, CreditCard, MapPin, BarChart3, Loader2, ArrowUpRight, AlertCircle,
+  Users, CreditCard, MapPin, Loader2, ArrowUpRight, AlertCircle,
   Percent, FileText, UserPlus, TrendingUp, DollarSign, Clock, Activity,
-  ChevronRight, RefreshCw, UserCircle, Car
+  ChevronRight, RefreshCw, UserCircle, Car, Truck, Ban, Building2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/utils/currency.js';
@@ -37,8 +42,14 @@ function SkeletonCard({ className = '' }) {
 
 const AdminAssociationDashboard = () => {
   const { currentUser } = useAuth();
-  const [stats, setStats] = useState({ members: 0, todayPayments: 0, todayRevenue: 0, arrieres: 0, recoveryRate: 0, activeMembers: 0 });
+  const [stats, setStats] = useState({
+    members: 0, todayPayments: 0, todayRevenue: 0, arrieres: 0,
+    recoveryRate: 0, activeMembers: 0,
+    parkingsCount: 0, agentsCount: 0,
+    vehiclesCount: 0, driversCount: 0, debtsCount: 0
+  });
   const [recentPayments, setRecentPayments] = useState([]);
+  const [alerts, setAlerts] = useState([]);
   const [revenueTrend, setRevenueTrend] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -51,11 +62,6 @@ const AdminAssociationDashboard = () => {
     try {
       const orgId = currentUser.organization_id;
 
-      const membersRes = await pb.collection('members').getList(1, 1, {
-        filter: `organization_id = "${orgId}"`,
-        $autoCancel: false
-      });
-
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayStr = today.toISOString().split('T')[0];
@@ -63,23 +69,56 @@ const AdminAssociationDashboard = () => {
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
 
-      const paymentsRes = await pb.collection('payments').getList(1, 500, {
-        filter: `organization_id = "${orgId}" && payment_date >= "${sevenDaysAgoStr}"`,
-        sort: '-created',
-        $autoCancel: false
-      });
+      const [
+        membersRes, paymentsRes, membersList, parkingsRes, usersRes,
+        vehiclesRes, driversRes, debtsRes, notificationsRes
+      ] = await Promise.all([
+        pb.collection('members').getList(1, 1, {
+          filter: `organization_id = "${orgId}"`,
+          $autoCancel: false
+        }),
+        pb.collection('payments').getList(1, 500, {
+          filter: `organization_id = "${orgId}" && payment_date >= "${sevenDaysAgoStr}"`,
+          sort: '-created',
+          $autoCancel: false
+        }),
+        pb.collection('members').getList(1, 500, {
+          filter: `organization_id = "${orgId}"`,
+          sort: '-created',
+          $autoCancel: false
+        }),
+        pb.collection('parkings').getList(1, 500, {
+          filter: `organization_id = "${orgId}"`,
+          $autoCancel: false
+        }),
+        pb.collection('users').getList(1, 1, {
+          filter: `organization_id = "${orgId}" && role = "agent"`,
+          $autoCancel: false
+        }),
+        pb.collection('vehicles').getList(1, 1, {
+          filter: `organization_id = "${orgId}"`,
+          $autoCancel: false
+        }).catch(() => ({ totalItems: 0 })),
+        pb.collection('drivers').getList(1, 1, {
+          filter: `organization_id = "${orgId}"`,
+          $autoCancel: false
+        }).catch(() => ({ totalItems: 0 })),
+        pb.collection('debts').getList(1, 1, {
+          filter: `organization_id = "${orgId}" && status = "open"`,
+          $autoCancel: false
+        }).catch(() => ({ totalItems: 0, items: [] })),
+        pb.collection('notifications').getList(1, 3, {
+          filter: `organization_id = "${orgId}" && read = false`,
+          sort: '-created',
+          $autoCancel: false
+        }).catch(() => ({ items: [] })),
+      ]);
 
       const allPayments = paymentsRes.items || [];
       const todayPayments = allPayments.filter(p => p.payment_date === todayStr);
       const todayRevenue = todayPayments.reduce((sum, p) => sum + p.amount, 0);
 
-      const members = await pb.collection('members').getList(1, 500, {
-        filter: `organization_id = "${orgId}"`,
-        sort: '-created',
-        $autoCancel: false
-      });
-
-      const allMembers = members.items || [];
+      const allMembers = membersList.items || [];
       const membersMap = {};
       allMembers.forEach(m => membersMap[m.id] = m);
       const activeMembersCount = allMembers.filter(m => m.status === 'active').length;
@@ -87,23 +126,56 @@ const AdminAssociationDashboard = () => {
       const uniqueMembersPaidToday = new Set(todayPayments.map(p => p.member_id)).size;
       const realRecoveryRate = activeMembersCount > 0 ? ((uniqueMembersPaidToday / activeMembersCount) * 100).toFixed(1) : 0;
 
+      const parkingsItems = parkingsRes.items || [];
+      const activeParkings = parkingsItems.filter(p => p.status === 'active').length;
+
+      const debtsData = debtsRes.items || [];
+      const debtsTotal = debtsData.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+
       setStats({
         members: membersRes.totalItems,
         todayPayments: todayPayments.length,
         todayRevenue,
-        arrieres: realArrieres,
+        arrieres: realArrieres || debtsTotal,
         recoveryRate: parseFloat(realRecoveryRate),
-        activeMembers: activeMembersCount
+        activeMembers: activeMembersCount,
+        parkingsCount: activeParkings,
+        agentsCount: usersRes.totalItems,
+        vehiclesCount: vehiclesRes.totalItems || 0,
+        driversCount: driversRes.totalItems || 0,
+        debtsCount: debtsRes.totalItems || 0,
       });
 
       const enrichedPayments = todayPayments.slice(0, 8).map(p => ({
         ...p,
+        title: membersMap[p.member_id]?.name || 'Inconnu',
         memberName: membersMap[p.member_id]?.name || 'Inconnu',
         memberPhoto: membersMap[p.member_id]?.photo || null
       }));
       setRecentPayments(enrichedPayments);
 
-      // 7-day trend
+      const pendingAlerts = [];
+      if (realArrieres > 0 || debtsTotal > 0) {
+        pendingAlerts.push({
+          id: 'debt-alert',
+          severity: 'warning',
+          title: 'Arriérés et dettes',
+          message: `${membersRes.totalItems > 0 ? Math.round(realArrieres > 0 ? (allMembers.filter(m => Number(m.debt_amount) > 0).length) : 0) : 0} membres en situation d\'impayé`,
+          amount: realArrieres || debtsTotal,
+          link: '/late-payments',
+        });
+      }
+      if (notificationsRes.items?.length > 0) {
+        pendingAlerts.push({
+          id: 'unread-notif',
+          severity: 'info',
+          title: 'Notifications non lues',
+          message: `${notificationsRes.items.length} notification${notificationsRes.items.length > 1 ? 's' : ''} en attente`,
+          link: '/notifications',
+        });
+      }
+      setAlerts(pendingAlerts);
+
       const trend = [];
       for (let i = 6; i >= 0; i--) {
         const d = new Date(today);
@@ -186,7 +258,7 @@ const AdminAssociationDashboard = () => {
 
   if (isLoading && stats.members === 0) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-16">
         <Header />
         <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-4">
           <SkeletonCard className="h-20" />
@@ -207,7 +279,7 @@ const AdminAssociationDashboard = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-16">
         <Header />
         <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] gap-4 px-4">
           <AlertCircle className="w-12 h-12 text-destructive" />
@@ -222,44 +294,22 @@ const AdminAssociationDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col pb-16 lg:pb-0">
       <Header />
 
       <div className="flex-1 flex overflow-hidden relative">
-        <aside className="w-64 border-r border-border bg-card/50 backdrop-blur z-10 hidden md:flex flex-col">
-          <div className="p-6 flex-1">
-            <h2 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-4">Panel Association</h2>
-            <nav className="space-y-1">
-              <Link to="/dashboard" className="flex items-center gap-3 px-3 py-2.5 bg-primary/20 text-primary rounded-lg font-medium transition-colors">
-                <BarChart3 className="w-4 h-4" /> Vue d'ensemble
-              </Link>
-              <Link to="/members" className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
-                <Users className="w-4 h-4" /> Gestion Membres
-              </Link>
-              <Link to="/parkings" className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
-                <MapPin className="w-4 h-4" /> Parkings
-              </Link>
-              <Link to="/agents" className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
-                <UserPlus className="w-4 h-4" /> Agents
-              </Link>
-              <Link to="/reports" className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
-                <BarChart3 className="w-4 h-4" /> Rapports
-              </Link>
-            </nav>
-          </div>
-        </aside>
-
+        <AppSidebar />
         <main className="flex-1 overflow-y-auto p-4 md:p-8 z-10">
           <motion.div
             variants={container}
             initial="hidden"
             animate="show"
-            className="max-w-6xl mx-auto"
+            className="max-w-7xl mx-auto"
           >
             <motion.div variants={item} className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight mb-2">Tableau de Bord</h1>
-                <p className="text-muted-foreground text-lg">Performances et métriques de la journée.</p>
+                <p className="text-muted-foreground text-lg">Performances et métriques de votre organisation.</p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <button onClick={() => fetchData(true)}
@@ -277,151 +327,110 @@ const AdminAssociationDashboard = () => {
               </div>
             </motion.div>
 
-            {/* Bento Grid Stats */}
-            <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-8">
-              {/* Revenue Hero */}
-              <motion.div variants={item}
-                className="md:col-span-5 bg-gradient-to-br from-primary to-primary/80 rounded-2xl p-6 relative overflow-hidden group"
-              >
-                <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/5 rounded-full translate-y-1/3 -translate-x-1/4" />
-                <div className="relative z-10 flex flex-col h-full">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-primary-foreground/80 font-medium flex items-center gap-2">
-                      <DollarSign className="w-4 h-4" /> Revenu du Jour
+            {/* Section 1: Résumé du jour */}
+            <motion.div variants={item} className="mb-8">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Résumé du Jour</h2>
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                {/* Revenue Hero */}
+                <motion.div variants={item}
+                  className="md:col-span-5 bg-gradient-to-br from-primary to-primary/80 rounded-2xl p-6 relative overflow-hidden group"
+                >
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/5 rounded-full translate-y-1/3 -translate-x-1/4" />
+                  <div className="relative z-10 flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-primary-foreground/80 font-medium flex items-center gap-2">
+                        <DollarSign className="w-4 h-4" /> Revenu du Jour
+                      </span>
+                      {trendDirection === 'up' && <TrendingUp className="w-5 h-5 text-green-300" />}
+                      {trendDirection === 'down' && <TrendingUp className="w-5 h-5 text-red-300 rotate-180" />}
+                    </div>
+                    <span className="text-4xl md:text-5xl font-extrabold text-primary-foreground tracking-tight mt-auto">
+                      {formatCurrency(stats.todayRevenue)}
                     </span>
-                    {trendDirection === 'up' && <TrendingUp className="w-5 h-5 text-green-300" />}
-                    {trendDirection === 'down' && <TrendingUp className="w-5 h-5 text-red-300 rotate-180" />}
+                    <span className="text-primary-foreground/60 text-sm mt-1">
+                      {stats.todayPayments} encaissement{stats.todayPayments > 1 ? 's' : ''} aujourd'hui
+                    </span>
                   </div>
-                  <span className="text-4xl md:text-5xl font-extrabold text-primary-foreground tracking-tight mt-auto">
-                    {formatCurrency(stats.todayRevenue)}
+                </motion.div>
+
+                {/* Recovery Rate */}
+                <motion.div variants={item}
+                  className="md:col-span-3 bg-card border border-border rounded-2xl p-6 shadow-card flex flex-col"
+                >
+                  <span className="text-muted-foreground font-medium mb-1 flex items-center gap-2 text-sm">
+                    <Activity className="w-4 h-4 text-primary" /> Recouvrement
                   </span>
-                  <span className="text-primary-foreground/60 text-sm mt-1">
-                    {stats.todayPayments} encaissement{stats.todayPayments > 1 ? 's' : ''} aujourd'hui
+                  <span className="text-4xl font-extrabold text-foreground mt-auto">{stats.recoveryRate}%</span>
+                  <span className="text-xs text-muted-foreground mt-1">
+                    {stats.activeMembers} membres actifs sur {stats.members}
                   </span>
-                </div>
-              </motion.div>
+                  <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-700 ease-out"
+                      style={{ width: `${Math.min(stats.recoveryRate, 100)}%` }}
+                    />
+                  </div>
+                </motion.div>
 
-              {/* Recovery Rate */}
-              <motion.div variants={item}
-                className="md:col-span-3 bg-card border border-border rounded-2xl p-6 shadow-card flex flex-col"
-              >
-                <span className="text-muted-foreground font-medium mb-1 flex items-center gap-2 text-sm">
-                  <Activity className="w-4 h-4 text-primary" /> Recouvrement
-                </span>
-                <span className="text-4xl font-extrabold text-foreground mt-auto">{stats.recoveryRate}%</span>
-                <span className="text-xs text-muted-foreground mt-1">
-                  {stats.activeMembers} membres actifs
-                </span>
-                {/* Mini bar */}
-                <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-700 ease-out"
-                    style={{ width: `${Math.min(stats.recoveryRate, 100)}%` }}
-                  />
-                </div>
-              </motion.div>
+                {/* Today Payments */}
+                <motion.div variants={item}
+                  className="md:col-span-2 bg-card border border-border rounded-2xl p-6 shadow-card flex flex-col"
+                >
+                  <span className="text-muted-foreground font-medium mb-1 flex items-center gap-2 text-sm">
+                    <CreditCard className="w-4 h-4 text-secondary" /> Paiements
+                  </span>
+                  <span className="text-4xl font-extrabold text-foreground mt-auto">{stats.todayPayments}</span>
+                  <span className="text-xs text-muted-foreground mt-1">aujourd'hui</span>
+                </motion.div>
 
-              {/* Today Payments */}
-              <motion.div variants={item}
-                className="md:col-span-2 bg-card border border-border rounded-2xl p-6 shadow-card flex flex-col"
-              >
-                <span className="text-muted-foreground font-medium mb-1 flex items-center gap-2 text-sm">
-                  <CreditCard className="w-4 h-4 text-secondary" /> Paiements
-                </span>
-                <span className="text-4xl font-extrabold text-foreground mt-auto">{stats.todayPayments}</span>
-                <span className="text-xs text-muted-foreground mt-1">aujourd'hui</span>
-              </motion.div>
-
-              {/* Total Members */}
-              <motion.div variants={item}
-                className="md:col-span-2 bg-card border border-border rounded-2xl p-6 shadow-card flex flex-col"
-              >
-                <span className="text-muted-foreground font-medium mb-1 flex items-center gap-2 text-sm">
-                  <Users className="w-4 h-4 text-primary" /> Membres
-                </span>
-                <span className="text-4xl font-extrabold text-foreground mt-auto">{stats.members}</span>
-                <span className="text-xs text-muted-foreground mt-1">
-                  {stats.activeMembers} actifs
-                </span>
-              </motion.div>
+                {/* Members */}
+                <motion.div variants={item}
+                  className="md:col-span-2 bg-card border border-border rounded-2xl p-6 shadow-card flex flex-col"
+                >
+                  <span className="text-muted-foreground font-medium mb-1 flex items-center gap-2 text-sm">
+                    <Users className="w-4 h-4 text-primary" /> Membres
+                  </span>
+                  <span className="text-4xl font-extrabold text-foreground mt-auto">{stats.members}</span>
+                  <span className="text-xs text-muted-foreground mt-1">
+                    {stats.activeMembers} actifs
+                  </span>
+                </motion.div>
+              </div>
             </motion.div>
 
-            {/* Second Row: Arrears + Quick Actions */}
-            <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-8">
-              {/* Arrears */}
-              <div className="md:col-span-7 bg-gradient-to-br from-destructive/5 to-destructive/10 border border-destructive/20 rounded-2xl p-6 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <span className="text-destructive font-medium mb-1 flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5" /> Arriérés Totaux
-                  </span>
-                  <p className="text-muted-foreground text-sm">Somme des cotisations impayées</p>
-                </div>
+            {/* Section 2: KPIs + Alertes */}
+            <motion.div variants={item} className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
+              <StatCard icon={MapPin} label="Parkings Actifs" value={stats.parkingsCount} sub="en activité" color="secondary" />
+              <StatCard icon={UserPlus} label="Agents" value={stats.agentsCount} sub="terrain + bureau" color="accent" />
+              <StatCard icon={Car} label="Véhicules" value={stats.vehiclesCount} sub="enregistrés" color="primary" />
+              <StatCard icon={UserCircle} label="Chauffeurs" value={stats.driversCount} sub="enregistrés" color="secondary" />
+            </motion.div>
+
+            {/* Arrears + Alert Panel */}
+            <motion.div variants={item} className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              <div className="lg:col-span-2">
+                <AlertPanel
+                  title="Alertes & Retards"
+                  alerts={alerts}
+                  viewAllLink="/late-payments"
+                />
+              </div>
+              <div className="bg-gradient-to-br from-destructive/5 to-destructive/10 border border-destructive/20 rounded-2xl p-6 shadow-card flex flex-col justify-center">
+                <span className="text-destructive font-medium mb-1 flex items-center gap-2">
+                  <Ban className="w-5 h-5" /> Arriérés & Dettes
+                </span>
+                <p className="text-muted-foreground text-sm mb-3">Total des impayés</p>
                 <span className="text-3xl md:text-4xl font-extrabold text-destructive">
                   {formatCurrency(stats.arrieres)}
                 </span>
-              </div>
-
-              {/* Quick Actions Bento */}
-              <div className="md:col-span-5 grid grid-cols-2 gap-4">
-                <Link to="/members"
-                  className="bg-card border border-border rounded-2xl p-5 hover:bg-muted/50 transition-all shadow-card flex flex-col items-center justify-center gap-3 text-center group"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors group-hover:scale-110 transition-transform">
-                    <Users className="w-6 h-6 text-primary" />
-                  </div>
-                  <span className="font-bold text-foreground text-sm">Membres</span>
-                </Link>
-                <Link to="/parkings"
-                  className="bg-card border border-border rounded-2xl p-5 hover:bg-muted/50 transition-all shadow-card flex flex-col items-center justify-center gap-3 text-center group"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center group-hover:bg-secondary/20 transition-colors group-hover:scale-110 transition-transform">
-                    <MapPin className="w-6 h-6 text-secondary" />
-                  </div>
-                  <span className="font-bold text-foreground text-sm">Parkings</span>
-                </Link>
-                <Link to="/agents"
-                  className="bg-card border border-border rounded-2xl p-5 hover:bg-muted/50 transition-all shadow-card flex flex-col items-center justify-center gap-3 text-center group"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors group-hover:scale-110 transition-transform">
-                    <UserPlus className="w-6 h-6 text-blue-400" />
-                  </div>
-                  <span className="font-bold text-foreground text-sm">Agents</span>
-                </Link>
-                <button onClick={handleExportReport} disabled={isGeneratingPDF}
-                  className="bg-card border border-border rounded-2xl p-5 hover:bg-muted/50 transition-all shadow-card flex flex-col items-center justify-center gap-3 text-center group disabled:opacity-60"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-muted/80 transition-colors group-hover:scale-110 transition-transform">
-                    {isGeneratingPDF ? <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /> : <FileText className="w-6 h-6 text-muted-foreground" />}
-                  </div>
-                  <span className="font-bold text-foreground text-sm">Rapport</span>
-                </button>
-                <Link to="/coming-soon/drivers"
-                  className="bg-card border border-border rounded-2xl p-5 hover:bg-muted/50 transition-all shadow-card flex flex-col items-center justify-center gap-3 text-center group"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500/20 transition-colors group-hover:scale-110 transition-transform">
-                    <UserCircle className="w-6 h-6 text-purple-400" />
-                  </div>
-                  <span className="font-bold text-foreground text-sm flex items-center gap-1.5">
-                    Chauffeurs
-                    <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold">Bientôt</span>
-                  </span>
-                </Link>
-                <Link to="/coming-soon/vehicles"
-                  className="bg-card border border-border rounded-2xl p-5 hover:bg-muted/50 transition-all shadow-card flex flex-col items-center justify-center gap-3 text-center group"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors group-hover:scale-110 transition-transform">
-                    <Car className="w-6 h-6 text-emerald-400" />
-                  </div>
-                  <span className="font-bold text-foreground text-sm flex items-center gap-1.5">
-                    Véhicules
-                    <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold">Bientôt</span>
-                  </span>
-                </Link>
+                <span className="text-xs text-muted-foreground mt-1">
+                  {stats.debtsCount} dette{stats.debtsCount > 1 ? 's' : ''} ouverte{stats.debtsCount > 1 ? 's' : ''}
+                </span>
               </div>
             </motion.div>
 
-            {/* Charts Row */}
+            {/* Section: Encaissements récents + Graphiques */}
             <motion.div variants={item} className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
               {/* Revenue Trend Chart */}
               <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-6 shadow-card">
@@ -463,52 +472,26 @@ const AdminAssociationDashboard = () => {
                 </div>
               </div>
 
-              {/* Today's Payment Methods */}
-              <div className="bg-card border border-border rounded-2xl p-6 shadow-card">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-foreground">Aujourd'hui</h3>
-                  <span className="text-xs text-muted-foreground">
-                    {recentPayments.length} transactions
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  {recentPayments.length === 0 ? (
-                    <div className="py-12 flex flex-col items-center justify-center text-center">
-                      <CreditCard className="w-10 h-10 text-muted-foreground/30 mb-3" />
-                      <p className="text-foreground font-medium">Aucun paiement</p>
-                    </div>
-                  ) : (
-                    recentPayments.map((p, i) => (
-                      <motion.div
-                        key={p.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                          <span className="text-xs font-bold text-primary">
-                            {p.memberName?.charAt(0)?.toUpperCase() || '?'}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate">{p.memberName}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {new Date(p.created).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                        <span className="text-sm font-bold text-green-500">+{formatCurrency(p.amount)}</span>
-                      </motion.div>
-                    ))
-                  )}
-                </div>
-                {recentPayments.length > 0 && (
-                  <Link to="/reports"
-                    className="mt-3 flex items-center justify-center gap-1 text-xs font-bold text-primary hover:text-primary/80 transition-colors pt-3 border-t border-border"
-                  >
-                    Voir tous les rapports <ChevronRight className="w-3 h-3" />
-                  </Link>
-                )}
+              {/* Recent Activity */}
+              <RecentActivityList
+                items={recentPayments}
+                type="payment"
+                title="Encaissements Récents"
+                viewAllLink="/reports"
+                maxItems={6}
+              />
+            </motion.div>
+
+            {/* Section: Actions Rapides */}
+            <motion.div variants={item} className="mb-8">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Actions Rapides</h2>
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                <QuickActionCard icon={Users} title="Membres" href="/members" color="primary" />
+                <QuickActionCard icon={MapPin} title="Parkings" href="/parkings" color="secondary" />
+                <QuickActionCard icon={FileText} title="Rapports" href="/reports" color="accent" />
+                <QuickActionCard icon={UserCircle} title="Chauffeurs" color="purple" comingSoon />
+                <QuickActionCard icon={Car} title="Véhicules" color="emerald" comingSoon />
+                <QuickActionCard icon={Ban} title="Dettes" color="amber" comingSoon />
               </div>
             </motion.div>
 
