@@ -3,8 +3,8 @@ import { QRCodeSVG } from 'qrcode.react';
 
 const VERIFY_BASE_URL = 'https://alikamobility.alika-konnect.com/verify/card';
 
-const PrintableMemberCard = React.forwardRef(({ card, memberName }, ref) => {
-  const verifyUrl = card?.card_number ? `${VERIFY_BASE_URL}/${card.card_number}` : '';
+const PrintableMemberCard = React.forwardRef(({ card, memberName, verifyUrl: propVerifyUrl }, ref) => {
+  const verifyUrl = propVerifyUrl || (card?.card_number ? `${VERIFY_BASE_URL}/${card.card_number}` : '');
 
   const cardTypeStyles = {
     standard: { bg: '#1e293b', badge: '#3b82f6', label: 'STANDARD' },

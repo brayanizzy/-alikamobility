@@ -10,18 +10,20 @@ const CardVerifyPage = () => {
   const { cardNumber: paramCardNumber } = useParams();
   const [searchParams] = useSearchParams();
   const initialCard = paramCardNumber || searchParams.get('card') || '';
+  const initialToken = searchParams.get('token') || '';
   const [cardInput, setCardInput] = useState(initialCard);
+  const [tokenInput, setTokenInput] = useState(initialToken);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (initialCard) {
-      verifyCard(initialCard);
+      verifyCard(initialCard, initialToken);
     }
   }, [initialCard]);
 
-  const verifyCard = async (cardNumber) => {
+  const verifyCard = async (cardNumber, token) => {
     if (!cardNumber || cardNumber.trim().length < 3) {
       setError('Veuillez entrer un numéro de carte valide.');
       return;
@@ -32,11 +34,15 @@ const CardVerifyPage = () => {
     setResult(null);
 
     try {
-      const res = await fetch(`${API_BASE}/cards/verify?card_number=${encodeURIComponent(cardNumber.trim())}`);
+      let url = `${API_BASE}/cards/verify?card_number=${encodeURIComponent(cardNumber.trim())}`;
+      if (token) {
+        url += `&token=${encodeURIComponent(token)}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Carte introuvable ou invalide.');
+        throw new Error(data.error || data.message || 'Carte introuvable ou invalide.');
       }
 
       setResult(data);

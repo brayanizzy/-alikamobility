@@ -6,12 +6,15 @@ import AppSidebar from '@/components/AppSidebar.jsx';
 import PrintableMemberCard from '@/components/cards/PrintableMemberCard.jsx';
 import { Loader2, AlertCircle, ArrowLeft, Printer } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'https://alikamobility.alika-konnect.com/api';
+
 const MemberCardPrintPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const printRef = useRef(null);
   const [card, setCard] = useState(null);
   const [member, setMember] = useState(null);
+  const [secureUrl, setSecureUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -21,6 +24,18 @@ const MemberCardPrintPage = () => {
         setLoading(true);
         const c = await pb.collection('member_cards').getOne(id, { $autoCancel: false });
         setCard(c);
+
+        // Fetch secure QR URL
+        const token = localStorage.getItem('api_token');
+        if (token) {
+          fetch(`${API_BASE}/cards/secure-url?id=${c.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then(r => r.json())
+            .then(d => { if (d.success) setSecureUrl(d.verify_url); })
+            .catch(() => {});
+        }
+
         if (c.member_id) {
           pb.collection('members').getOne(c.member_id, { $autoCancel: false })
             .then(m => setMember(m)).catch(() => {});
@@ -78,7 +93,7 @@ const MemberCardPrintPage = () => {
             </div>
 
             <div className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-card print:border-0 print:shadow-none print:p-4">
-              <PrintableMemberCard ref={printRef} card={card} memberName={member?.name} />
+              <PrintableMemberCard ref={printRef} card={card} memberName={member?.name} verifyUrl={secureUrl} />
             </div>
           </div>
         </main>

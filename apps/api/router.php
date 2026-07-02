@@ -6,6 +6,7 @@ require_once __DIR__ . '/crud.php';
 require_once __DIR__ . '/files.php';
 require_once __DIR__ . '/email.php';
 require_once __DIR__ . '/notifications.php';
+require_once __DIR__ . '/card-security.php';
 
 $allowedOrigin = getAllowedOrigin();
 header('Access-Control-Allow-Origin: ' . $allowedOrigin);
@@ -35,6 +36,7 @@ try {
         'GET /cron/daily-collection-check' => 'handleDailyCollectionCheck',
         'POST /finance/pay-debt' => 'handlePayDebt',
         'GET /cards/verify' => 'handleCardVerify',
+        'GET /cards/secure-url' => 'handleCardSecureUrl',
     ];
 
     $key = "$method $path";
@@ -64,8 +66,18 @@ try {
 
 function handleCardVerify() {
     $cardNumber = $_GET['card_number'] ?? null;
+    $token = $_GET['token'] ?? null;
+
     if (!$cardNumber) {
         jsonResponse(['error' => 'card_number is required'], 400);
+    }
+
+    // If token is present, verify HMAC. If absent, still accept for backward compat
+    // but enforce token verification for cards that have qr_secret
+    if ($token) {
+        if (!verifyCardToken($cardNumber, $token)) {
+            jsonResponse(['success' => false, 'status' => 'invalid_token', 'message' => 'QR code invalide ou non sécurisé.'], 403);
+        }
     }
 
     $db = getDB();
@@ -79,7 +91,24 @@ function handleCardVerify() {
         jsonResponse(['error' => 'Carte introuvable'], 404);
     }
 
-    // Find the member (limited public data)
+    // If token was not provided but card has qr_secret, require token
+    if (!$token && !empty($card['qr_secret'])) {
+        jsonResponse(['success' => false, 'status' => 'token_required', 'message' => 'Cette carte nécessite un QR code sécurisé. Utilisez le QR code officiel.'], 403);
+    }
+
+    // Check card status
+    if ($card['status'] !== 'active') {
+        $statusLabels = ['expired' => 'expirée', 'lost' => 'perdue', 'replaced' => 'remplacée', 'cancelled' => 'annulée'];
+        $label = $statusLabels[$card['status']] ?? $card['status'];
+        jsonResponse(['error' => "Carte {$label}. Vérification refusée."], 403);
+    }
+
+    // Check expiry
+    if ($card['expiry_date'] && $card['expiry_date'] < date('Y-m-d')) {
+        jsonResponse(['error' => 'Carte expirée depuis le ' . $card['expiry_date'] . '. Veuillez renouveler.'], 403);
+    }
+
+    // Find the member (limited public data — no phone, email, address)
     $member = null;
     if ($card['member_id']) {
         $stmt = $db->prepare("SELECT id, name, member_code, status FROM members WHERE id = ? LIMIT 1");
@@ -95,8 +124,8 @@ function handleCardVerify() {
         $openDebt = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    // Return limited public data (no phone, email, address)
     $response = [
+        'success' => true,
         'valid' => $card['status'] === 'active',
         'card' => [
             'card_number' => $card['card_number'],
@@ -121,6 +150,29 @@ function handleCardVerify() {
     ];
 
     jsonResponse($response);
+}
+
+function handleCardSecureUrl() {
+    $user = getAuthUser();
+    if (!$user) { jsonResponse(['error' => 'Unauthorized'], 401); }
+
+    $cardId = $_GET['id'] ?? null;
+    if (!$cardId) { jsonResponse(['error' => 'Card ID is required'], 400); }
+
+    $db = getDB();
+    $stmt = $db->prepare("SELECT * FROM member_cards WHERE id = ? AND organization_id = ? LIMIT 1");
+    $stmt->execute([$cardId, $user['organization_id']]);
+    $card = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$card) { jsonResponse(['error' => 'Card not found'], 404); }
+
+    $verifyUrl = generateSecureVerifyUrl($card);
+
+    jsonResponse([
+        'success' => true,
+        'verify_url' => $verifyUrl,
+        'card_number' => $card['card_number'],
+    ]);
 }
 
 function handlePayDebt() {

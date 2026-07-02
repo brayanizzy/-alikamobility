@@ -37,7 +37,7 @@ const CardVerificationResult = ({ result, loading, error }) => {
     );
   }
 
-  const isValid = result.card?.status === 'active';
+  const isValid = result.card?.status === 'active' && result.success !== false;
   const hasDebt = result.openDebt && parseFloat(result.openDebt.amount_remaining) > 0;
 
   return (

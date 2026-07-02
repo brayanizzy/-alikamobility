@@ -373,6 +373,15 @@ function handleCreate($collection, $user) {
         }
     }
 
+    // Auto-generate qr_secret for new member cards
+    if ($collection === 'member_cards' && empty($record['qr_secret'])) {
+        require_once __DIR__ . '/card-security.php';
+        $qrSecret = generateCardQrSecret();
+        $updStmt = $db->prepare("UPDATE member_cards SET qr_secret = ?, updated = NOW() WHERE id = ?");
+        $updStmt->execute([$qrSecret, $id]);
+        $record['qr_secret'] = $qrSecret;
+    }
+
     if ($collection === 'payments') {
         try {
             $member = null;

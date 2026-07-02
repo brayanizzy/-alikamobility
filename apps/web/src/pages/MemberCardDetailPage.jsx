@@ -9,11 +9,14 @@ import MemberCardPreview from '@/components/cards/MemberCardPreview.jsx';
 import QRCodeDisplay from '@/components/cards/QRCodeDisplay.jsx';
 import { Eye, Printer, Loader2, AlertCircle, ArrowLeft, Edit, User, Calendar, Shield, Lock, FileText } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'https://alikamobility.alika-konnect.com/api';
+
 const MemberCardDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [card, setCard] = useState(null);
   const [member, setMember] = useState(null);
+  const [secureUrl, setSecureUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -23,6 +26,17 @@ const MemberCardDetailPage = () => {
         setLoading(true);
         const c = await pb.collection('member_cards').getOne(id, { $autoCancel: false });
         setCard(c);
+
+        // Fetch secure QR URL
+        const token = localStorage.getItem('api_token');
+        if (token) {
+          fetch(`${API_BASE}/cards/secure-url?id=${c.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then(r => r.json())
+            .then(d => { if (d.success) setSecureUrl(d.verify_url); })
+            .catch(() => {});
+        }
 
         if (c.member_id) {
           pb.collection('members').getOne(c.member_id, { $autoCancel: false })
@@ -76,7 +90,7 @@ const MemberCardDetailPage = () => {
                   <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
                     <Shield className="w-4 h-4 text-primary" /> Code QR
                   </h3>
-                  <QRCodeDisplay cardNumber={card.card_number} size={200} />
+                  <QRCodeDisplay cardNumber={card.card_number} verifyUrl={secureUrl} size={200} />
                 </div>
               </div>
 

@@ -3,8 +3,8 @@ import { QRCodeSVG } from 'qrcode.react';
 
 const VERIFY_BASE_URL = 'https://alikamobility.alika-konnect.com/verify/card';
 
-const QRCodeDisplay = ({ cardNumber, size = 200, showUrl = true }) => {
-  if (!cardNumber) {
+const QRCodeDisplay = ({ cardNumber, verifyUrl: propVerifyUrl, size = 200, showUrl = true }) => {
+  if (!cardNumber && !propVerifyUrl) {
     return (
       <div className="flex items-center justify-center bg-muted/30 rounded-2xl border-2 border-dashed border-border" style={{ width: size, height: size }}>
         <p className="text-xs text-muted-foreground text-center px-2">Aucun QR disponible</p>
@@ -12,7 +12,7 @@ const QRCodeDisplay = ({ cardNumber, size = 200, showUrl = true }) => {
     );
   }
 
-  const verifyUrl = `${VERIFY_BASE_URL}/${cardNumber}`;
+  const verifyUrl = propVerifyUrl || `${VERIFY_BASE_URL}/${cardNumber}`;
 
   return (
     <div className="flex flex-col items-center gap-3">
