@@ -57,6 +57,21 @@ const DocumentCreatePage = lazy(() => import('./pages/DocumentCreatePage.jsx'));
 const DocumentDetailPage = lazy(() => import('./pages/DocumentDetailPage.jsx'));
 const DocumentEditPage = lazy(() => import('./pages/DocumentEditPage.jsx'));
 
+// Module 5 - Lines
+const LinesPage = lazy(() => import('./pages/LinesPage.jsx'));
+const LineCreatePage = lazy(() => import('./pages/LineCreatePage.jsx'));
+const LineDetailPage = lazy(() => import('./pages/LineDetailPage.jsx'));
+const LineEditPage = lazy(() => import('./pages/LineEditPage.jsx'));
+
+// Module 5 - Assignments
+const AssignmentsPage = lazy(() => import('./pages/AssignmentsPage.jsx'));
+const AssignmentCreatePage = lazy(() => import('./pages/AssignmentCreatePage.jsx'));
+const AssignmentDetailPage = lazy(() => import('./pages/AssignmentDetailPage.jsx'));
+const AssignmentEditPage = lazy(() => import('./pages/AssignmentEditPage.jsx'));
+
+// Module 5 - Parking Detail
+const ParkingDetailPage = lazy(() => import('./pages/ParkingDetailPage.jsx'));
+
 const AppFallback = () => (
   <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
     <div className="text-center">
@@ -279,6 +294,30 @@ function AppContent() {
             element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><DocumentDetailPage /></ProtectedRoute>} />
           <Route path="/documents/:id/edit"
             element={<ProtectedRoute allowedRoles={['super-admin', 'admin']}><DocumentEditPage /></ProtectedRoute>} />
+
+          {/* Parking Detail Route */}
+          <Route path="/parkings/:id"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><ParkingDetailPage /></ProtectedRoute>} />
+
+          {/* Line Routes */}
+          <Route path="/lines"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><LinesPage /></ProtectedRoute>} />
+          <Route path="/lines/new"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin']}><LineCreatePage /></ProtectedRoute>} />
+          <Route path="/lines/:id"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><LineDetailPage /></ProtectedRoute>} />
+          <Route path="/lines/:id/edit"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin']}><LineEditPage /></ProtectedRoute>} />
+
+          {/* Assignment Routes */}
+          <Route path="/assignments"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><AssignmentsPage /></ProtectedRoute>} />
+          <Route path="/assignments/new"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin']}><AssignmentCreatePage /></ProtectedRoute>} />
+          <Route path="/assignments/:id"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><AssignmentDetailPage /></ProtectedRoute>} />
+          <Route path="/assignments/:id/edit"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin']}><AssignmentEditPage /></ProtectedRoute>} />
 
           {/* Coming Soon (placeholder pour modules pas encore développés) */}
           <Route

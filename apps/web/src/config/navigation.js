@@ -28,8 +28,8 @@ export const NAV_ITEMS = {
       { label: 'Chauffeurs', path: '/drivers', icon: UserCircle },
       { label: 'Propriétaires', path: '/owners', icon: UserCircle },
       { label: 'Véhicules', path: '/vehicles', icon: Car },
-      { label: 'Lignes', path: '/coming-soon/lines', icon: Route },
-      { label: 'Affectations', path: '/coming-soon/assignments', icon: ClipboardCheck },
+      { label: 'Lignes', path: '/lines', icon: Route },
+      { label: 'Affectations', path: '/assignments', icon: ClipboardCheck },
     ],
     finances: [
       { label: 'Dettes', path: '/coming-soon/debts', icon: BookOpen },

@@ -50,7 +50,7 @@ function getCollectionConfig() {
         'permissions' => [
             'super-admin' => '*',
             'admin' => ['agencies', 'vehicle_types', 'vehicles', 'drivers', 'owners', 'lines', 'vehicle_assignments', 'documents', 'debts', 'penalties', 'member_cards', 'organizations', 'users', 'members', 'payments', 'parkings', 'qrcodes', 'receipts', 'notifications', 'admin_audit_logs', 'sessions'],
-            'agent' => ['members', 'parkings', 'payments', 'qrcodes', 'receipts', 'notifications', 'vehicles', 'drivers', 'vehicle_types', 'documents', 'member_cards'],
+            'agent' => ['members', 'parkings', 'payments', 'qrcodes', 'receipts', 'notifications', 'vehicles', 'drivers', 'vehicle_types', 'documents', 'member_cards', 'lines', 'vehicle_assignments'],
             'field_collector' => ['members', 'parkings', 'payments', 'qrcodes', 'receipts', 'vehicles', 'driver'],
             'office_collector' => ['members', 'payments', 'receipts', 'debts', 'penalties', 'notifications'],
         ],

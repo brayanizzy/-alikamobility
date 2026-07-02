@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import pb from '@/lib/pocketbaseClient';
 import Header from '@/components/Header.jsx';
+import AppSidebar from '@/components/AppSidebar.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import { Loader2, MapPin, Plus, Edit2, Trash2, ShieldBan, CheckCircle2 } from 'lucide-react';
+import { Loader2, MapPin, Plus, Edit2, Trash2, ShieldBan, CheckCircle2, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatCurrency } from '@/utils/currency.js';
 
 const ParkingsPage = () => {
   const { currentUser } = useAuth();
@@ -12,7 +15,9 @@ const ParkingsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const [assignmentCounts, setAssignmentCounts] = useState({});
   const [formData, setFormData] = useState({
     name: '',
     location: '',
@@ -32,6 +37,24 @@ const ParkingsPage = () => {
         $autoCancel: false
       });
       setParkings(records);
+
+      const pIds = records.map(p => p.id);
+      if (pIds.length > 0) {
+        const counts = {};
+        await Promise.all(pIds.map(async (pId) => {
+          try {
+            const res = await pb.collection('vehicle_assignments').getList(1, 1, {
+              filter: `parking_id = "${pId}" && status = "active"`,
+              skipTotal: false,
+              $autoCancel: false,
+            });
+            counts[pId] = res.totalItems || 0;
+          } catch (e) {
+            counts[pId] = 0;
+          }
+        }));
+        setAssignmentCounts(counts);
+      }
     } catch (err) {
       console.error(err);
       toast.error('Erreur lors du chargement des parkings');
@@ -73,6 +96,7 @@ const ParkingsPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const data = { ...formData, organization_id: currentUser.organization_id };
       
@@ -89,6 +113,8 @@ const ParkingsPage = () => {
     } catch (err) {
       console.error(err);
       toast.error("Erreur lors de l'enregistrement");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -106,7 +132,9 @@ const ParkingsPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="max-w-6xl mx-auto p-4 md:p-8">
+      <div className="flex-1 flex pb-16 lg:pb-0">
+        <AppSidebar />
+        <main className="flex-1 max-w-6xl mx-auto p-4 md:p-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Gestion des Parkings</h1>
@@ -152,7 +180,9 @@ const ParkingsPage = () => {
                   </div>
                 </div>
 
-                <h3 className="text-xl font-bold text-foreground mb-1">{parking.name}</h3>
+                <Link to={`/parkings/${parking.id}`} className="group">
+                  <h3 className="text-xl font-bold text-foreground mb-1 group-hover:text-primary transition-colors">{parking.name}</h3>
+                </Link>
                 <p className="text-muted-foreground text-sm mb-4 line-clamp-1">{parking.location || 'Aucune adresse'}</p>
 
                 <div className="space-y-3 mt-auto pt-4 border-t border-border">
@@ -166,7 +196,11 @@ const ParkingsPage = () => {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Taux / Jour:</span>
-                    <span className="font-medium text-foreground">{parking.daily_rate} XAF</span>
+                    <span className="font-medium text-foreground">{formatCurrency(parking.daily_rate)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm pt-2 border-t border-border/50">
+                    <span className="text-muted-foreground flex items-center gap-1"><ClipboardCheck className="w-3 h-3" /> Affectations actives</span>
+                    <span className="font-bold text-foreground">{assignmentCounts[parking.id] ?? '...'}</span>
                   </div>
                 </div>
               </motion.div>
@@ -175,6 +209,7 @@ const ParkingsPage = () => {
         )}
 
       </main>
+      </div>
 
       {/* Modal */}
       {showModal && (
@@ -206,7 +241,7 @@ const ParkingsPage = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-muted-foreground">Tarif Journalier (XAF)</label>
+                  <label className="text-sm font-medium text-muted-foreground">Tarif Journalier (USD)</label>
                   <input required type="number" value={formData.daily_rate} onChange={e => setFormData({...formData, daily_rate: Number(e.target.value)})} className="w-full h-12 px-4 rounded-xl bg-input border border-border text-foreground focus:ring-2 focus:ring-primary outline-none" />
                 </div>
                 <div className="space-y-1">
@@ -219,8 +254,8 @@ const ParkingsPage = () => {
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 rounded-xl bg-muted text-foreground font-bold hover:bg-muted/80 transition-colors">
                   Annuler
                 </button>
-                <button type="submit" className="flex-[2] py-4 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg hover:brightness-110 active:scale-95 transition-all">
-                  Enregistrer
+                <button type="submit" disabled={isSubmitting} className="flex-[2] py-4 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none">
+                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Enregistrer'}
                 </button>
               </div>
             </form>
