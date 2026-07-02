@@ -378,3 +378,127 @@ SFTP_PASS="..." node deploy-optimized.mjs
 **Fichiers modifiés (2) :**
 - `apps/web/src/App.jsx` — 8 routes lazy loadées
 - `apps/web/src/config/navigation.js` — chemins actifs pour vehicles/documents
+
+### Session 12 — 02/07/2026 (Module 7 — Cartes membres, QR code et vérification)
+
+- **Composants créés (5)** :
+  - `cards/MemberCardForm.jsx` — formulaire complet avec MemberSelector, type de carte (standard/premium/vip), dates émission/expiration, PIN optionnel
+  - `cards/MemberCardPreview.jsx` — aperçu carte type bancaire avec gradient par type, badge statut, numéro, dates
+  - `cards/QRCodeDisplay.jsx` — QR code via qrcode.react encodant URL `/verify/card/{card_number}`
+  - `cards/CardVerificationResult.jsx` — résultat vérification publique (valide/invalide, dette ouverte, infos limitées)
+  - `cards/PrintableMemberCard.jsx` — carte imprimable via `@media print` avec QR code intégré
+- **Pages cartes membres (5)** :
+  - `MemberCardsPage.jsx` — liste paginée (15/page), recherche, filtre statut, chargement noms membres en rafale
+  - `MemberCardCreatePage.jsx` — création avec génération automatique numéro (CARD-XXXXXX)
+  - `MemberCardDetailPage.jsx` — profil carte + aperçu + QR + infos sécurité + métadonnées
+  - `MemberCardEditPage.jsx` — modification avec MemberCardForm pré-rempli
+  - `MemberCardPrintPage.jsx` — impression via PrintableMemberCard avec bouton Imprimer
+- **Page vérification publique (1)** :
+  - `CardVerifyPage.jsx` — publique (sans ProtectedRoute), saisie manuelle + QR, affiche membre/dette/dates, données sensibles masquées
+- **Backend** :
+  - `router.php` : `GET /cards/verify` → `handleCardVerify()` — recherche carte par card_number, retourne infos limitées membre + dette ouverte
+  - `crud.php` : validation `card_type` enum (standard/premium/vip)
+- **ScannerPage** : support QR cartes membres (détection URL `/verify/card/`, lookup member via card, vérification statut actif)
+- **Navigation** : Cartes membres activé (`/member-cards`) dans finances admin
+- **Routes** : 5 protégées + 1 publique (`/verify/card/:cardNumber`)
+- **Build** : 2937 modules, 0 erreurs ✅
+- **PHP lint** : crud.php, router.php valides ✅
+- **Commit** : `77664e8` — "Module 7 member cards QR code and verification" (+1462/-80)
+- **Déploiement** : Hostinger via `deploy-full.mjs` + clé SSH `hostinger_new` ✅
+- **Tests production** : frontend SPA OK, API endpoint `/cards/verify` répond avec `{"error":"Carte introuvable"}` pour carte test ✅
+
+**Fichiers créés (11) :**
+- `apps/web/src/components/cards/MemberCardForm.jsx`
+- `apps/web/src/components/cards/MemberCardPreview.jsx`
+- `apps/web/src/components/cards/QRCodeDisplay.jsx`
+- `apps/web/src/components/cards/CardVerificationResult.jsx`
+- `apps/web/src/components/cards/PrintableMemberCard.jsx`
+- `apps/web/src/pages/MemberCardsPage.jsx`
+- `apps/web/src/pages/MemberCardCreatePage.jsx`
+- `apps/web/src/pages/MemberCardDetailPage.jsx`
+- `apps/web/src/pages/MemberCardEditPage.jsx`
+- `apps/web/src/pages/MemberCardPrintPage.jsx`
+- `apps/web/src/pages/CardVerifyPage.jsx`
+
+**Fichiers modifiés (5) :**
+- `apps/api/crud.php` — validation card_type enum
+- `apps/api/router.php` — endpoint GET /cards/verify
+- `apps/web/src/App.jsx` — 5 routes cartes + 1 publique vérification
+- `apps/web/src/config/navigation.js` — Cartes membres activé
+- `apps/web/src/pages/ScannerPage.jsx` — support QR cartes membres
+
+### Session 14 — 02/07/2026 (Module 9.1 — Validation fonctionnelle rapports/exports/permissions)
+
+- **Création du script de données de test** `setup-test-data.php` :
+  - 2 orgs (A: Kinshasa pro, B: Lubumbashi starter), 5 comptes utilisateurs (super-admin + admin A + field A + office A + admin B)
+  - Données : 5 membres (3 A + 2 B), 1 driver, 1 owner, 1 véhicule (Taxi-Moto), 1 ligne, 1 affectation, 1 carte membre avec QR, 3 dettes (2 A + 1 B), 1 pénalité, 4 paiements (3 A cash/mobile/bank + 1 B cash), 1 reçu
+  - Mots de passe forts (18 chars aléatoires), hash via `password_hash()`
+  - Script nettoyé du serveur après tests
+- **Bugs backend reports.php corrigés** (4 bugs majeurs) :
+  1. `handleReportsOverview()` : `$orgFilter` utilisait `p.organization_id` mais le FROM `payments` n'était pas aliasé → ajout `$orgFilterNoPrefix` (strip `p.`)
+  2. `handleReportsDebts()`, `handleReportsMembers()` : param ordering inversé (org_id avant dates) et `$orgSql AND` crashait pour super-admin sans filtre (dangling `AND`) → création `$whereAnd` + aliases par table avec préfixes
+  3. `handleReportsTransport()` : `lines` est mot réservé MySQL → backticks `` `lines` ``
+  4. `vehicle_type_id` vs `type_id` dans transport handler
+- **Tests API en production** :
+  - 7 endpoints reports : overview, payments, debts, transport, members, agent-performance, cashier — tous ✅ 200
+  - **Org isolation** : Admin B voit uniquement Org B (2 membres, 1 debt, 0 vehicles), pas de fuite Org A ✅
+  - **Super-admin** : sans filtre voit toutes les orgs (4 payments, 7 members), avec `?organization_id=` ne voit que l'org ciblée ✅
+  - **Office agent** : /reports/cashier répond (0 payments collectés par l'agent) ✅
+  - **Permissions** : pas de blocage rôle explicite sur les endpoints (tout user auth peut accéder), mais les données sont filtrées par org_id et collector_id
+- **Build** : 2949 modules, 0 erreurs (inchangé depuis Module 9)
+- **Déploiement** : Hostinger via `deploy-full.mjs` + clé SSH `hostinger_new` ✅ (reports.php + router.php corrigés)
+
+**Fichiers modifiés (2) :**
+- `apps/api/reports.php` — 4 bugs SQL corrigés
+- `apps/api/router.php` — revert du mode debug (retour générique 500)
+
+**Comptes de test créés (mots de passe dans l'historique session) :**
+- `test.super@alika-mobility.test` — super-admin
+- `test.admin.a@alika-mobility.test` — admin ORG A
+- `test.field.a@alika-mobility.test` — agent field_collector ORG A
+- `test.office.a@alika-mobility.test` — agent office_collector ORG A
+- `test.admin.b@alika-mobility.test` — admin ORG B (isolation test)
+
+### Session 13 — 02/07/2026 (Module 7.1 — Sécurisation QR HMAC-SHA256)
+
+- **Problème** : QR codes des cartes membres utilisaient uniquement le `card_number` séquentiel (`CARD-000001`), donc devinable et falsifiable.
+- **Solution** : HMAC-SHA256 avec `qr_secret` aléatoire par carte + secret serveur (`CARD_QR_HMAC_SECRET`).
+- **Structure DB** : `member_cards.qr_secret` existait déjà (VARCHAR(255) — migration V2). Aucune migration nécessaire.
+- **Backend** :
+  - `card-security.php` (nouveau) : `getCardHmacSecret()`, `generateCardQrSecret()`, `computeCardHmac()`, `verifyCardToken()`, `generateSecureVerifyUrl()`
+  - `router.php` : ajout `GET /cards/secure-url` (protégé) + modification `GET /cards/verify` (accepte `token`, vérifie HMAC, vérifie statut/expiration, refuse cartes avec `qr_secret` sans token)
+  - `crud.php` : auto-génération `qr_secret` à la création d'une carte membre
+  - `config.php` : define `CARD_VERIFY_BASE_URL`, HMAC secret via env `CARD_QR_HMAC_SECRET`
+- **Frontend** :
+  - `QRCodeDisplay.jsx` : accepte `verifyUrl` prop (sécurisé) en priorité
+  - `PrintableMemberCard.jsx` : accepte `verifyUrl` prop
+  - `MemberCardDetailPage.jsx` : fetch `/cards/secure-url` pour QR sécurisé
+  - `MemberCardPrintPage.jsx` : fetch `/cards/secure-url` pour QR imprimé
+  - `CardVerifyPage.jsx` : extrait `token` de l'URL et le passe à l'API
+  - `CardVerificationResult.jsx` : gère `result.success !== false`
+- **ScannerPage** : inchangé (les agents authentifiés utilisent l'API CRUD, pas le endpoint public)
+- **Backfill** : automatique à la volée — si `qr_secret` est vide lors d'une vérification ou génération d'URL sécurisée, il est généré et sauvegardé
+- **Compatibilité** : les anciennes cartes sans `qr_secret` sont automatiquement backfillées à la première lecture
+- **Sécurité publique** : données limitées (nom, code membre, statut carte, type, expiration, dette ouverte oui/non). Pas de téléphone, email, adresse, notes internes.
+- **Build** : 2937 modules, 0 erreurs ✅
+- **PHP lint** : 4/4 fichiers OK ✅
+- **Tests API** :
+  - `GET /cards/verify?card_number=test&token=bad` → `{"success":false,"status":"invalid_token","message":"..."}` ✅
+  - `GET /cards/verify?card_number=test` → `{"error":"Carte introuvable"}` ✅
+  - `GET /cards/secure-url?id=test` (sans auth) → `{"error":"Unauthorized"}` ✅
+- **Commit** : `ddf6c8b` — "Module 7.1 secure member card QR HMAC" (+297/-14)
+- **Déploiement** : Hostinger via `deploy-full.mjs` + clé SSH `hostinger_new` ✅
+
+**Fichier créé (1) :**
+- `apps/api/card-security.php` — fonctions HMAC + génération/sécurisation QR
+
+**Fichiers modifiés (9) :**
+- `apps/api/config.php` — define CARD_VERIFY_BASE_URL
+- `apps/api/crud.php` — auto-génération qr_secret à la création
+- `apps/api/router.php` — endpoint secure-url + vérification HMAC
+- `apps/web/src/components/cards/QRCodeDisplay.jsx` — support verifyUrl prop
+- `apps/web/src/components/cards/PrintableMemberCard.jsx` — support verifyUrl prop
+- `apps/web/src/components/cards/CardVerificationResult.jsx` — gestion success field
+- `apps/web/src/pages/MemberCardDetailPage.jsx` — fetch secure URL
+- `apps/web/src/pages/MemberCardPrintPage.jsx` — fetch secure URL
+- `apps/web/src/pages/CardVerifyPage.jsx` — extraction et passage token

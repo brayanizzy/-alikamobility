@@ -28,8 +28,10 @@ function handleReportsOverview() {
 
     $params = [];
     $orgFilter = getReportOrgFilter($user, $params);
+    $orgFilterNoPrefix = $orgFilter ? str_replace('p.', '', $orgFilter) : '';
     $orgSql = $orgFilter ? 'WHERE organization_id = ?' : '';
     $orgParams = $orgFilter ? [$params[0]] : [];
+    $dateOrgParams = $orgFilter ? [$from, $to, $params[0]] : [$from, $to];
 
     // Payments summary for period
     $stmt = $db->prepare("SELECT
@@ -37,22 +39,22 @@ function handleReportsOverview() {
         COALESCE(SUM(amount), 0) as total_collected,
         COALESCE(AVG(amount), 0) as avg_payment,
         COUNT(DISTINCT member_id) as unique_payers
-        FROM payments WHERE payment_date >= ? AND payment_date <= ? $orgFilter");
-    $stmt->execute(array_merge($params, [$from, $to]));
+        FROM payments WHERE payment_date >= ? AND payment_date <= ? $orgFilterNoPrefix");
+    $stmt->execute($dateOrgParams);
     $paymentsSummary = $stmt->fetch();
 
     // Breakdown by method
     $stmt = $db->prepare("SELECT payment_method, COUNT(*) as count, COALESCE(SUM(amount), 0) as total
-        FROM payments WHERE payment_date >= ? AND payment_date <= ? $orgFilter
+        FROM payments WHERE payment_date >= ? AND payment_date <= ? $orgFilterNoPrefix
         GROUP BY payment_method ORDER BY total DESC");
-    $stmt->execute(array_merge($params, [$from, $to]));
+    $stmt->execute($dateOrgParams);
     $byMethod = $stmt->fetchAll();
 
     // Breakdown by day
     $stmt = $db->prepare("SELECT payment_date, COUNT(*) as count, COALESCE(SUM(amount), 0) as total
-        FROM payments WHERE payment_date >= ? AND payment_date <= ? $orgFilter
+        FROM payments WHERE payment_date >= ? AND payment_date <= ? $orgFilterNoPrefix
         GROUP BY payment_date ORDER BY payment_date ASC");
-    $stmt->execute(array_merge($params, [$from, $to]));
+    $stmt->execute($dateOrgParams);
     $byDay = $stmt->fetchAll();
 
     // Members summary
@@ -111,9 +113,10 @@ function handleReportsOverview() {
     $prevTo = date('Y-m-d', strtotime($from) - 86400);
     $prevFrom = date('Y-m-d', strtotime($from) - $diff);
 
+    $prevParams = $orgFilter ? [$prevFrom, $prevTo, $params[0]] : [$prevFrom, $prevTo];
     $stmt = $db->prepare("SELECT COALESCE(SUM(amount), 0) as prev_collected FROM payments
-        WHERE payment_date >= ? AND payment_date <= ? $orgFilter");
-    $stmt->execute(array_merge($params, [$prevFrom, $prevTo]));
+        WHERE payment_date >= ? AND payment_date <= ? $orgFilterNoPrefix");
+    $stmt->execute($prevParams);
     $prevSummary = $stmt->fetch();
 
     jsonResponse([
@@ -271,6 +274,7 @@ function handleReportsDebts() {
     $orgFilter = getReportOrgFilter($user, $params);
     $orgSql = $orgFilter ? 'WHERE organization_id = ?' : '';
     $orgParams = $orgFilter ? [$params[0]] : [];
+    $orgSqlAlias = $orgFilter ? 'WHERE d.organization_id = ?' : '';
 
     // Summary
     $stmt = $db->prepare("SELECT
@@ -285,10 +289,12 @@ function handleReportsDebts() {
     if ($orgParams) $stmt->execute($orgParams); else $stmt->execute();
     $summary = $stmt->fetch();
 
+    $whereAnd = $orgSqlAlias ? "$orgSqlAlias AND" : "WHERE";
+
     // Top debtors
     $stmt = $db->prepare("SELECT d.member_id, m.name as member_name, d.amount_remaining, d.amount_original, d.status, d.currency
         FROM debts d LEFT JOIN members m ON d.member_id = m.id
-        $orgSql AND d.status IN ('pending', 'partially_paid')
+        $whereAnd d.status IN ('pending', 'partially_paid')
         ORDER BY d.amount_remaining DESC LIMIT 20");
     if ($orgParams) $stmt->execute($orgParams); else $stmt->execute();
     $topDebtors = $stmt->fetchAll();
@@ -298,7 +304,7 @@ function handleReportsDebts() {
         DATE_FORMAT(d.created, '%Y-%m') as month,
         COUNT(*) as count,
         COALESCE(SUM(d.amount_original), 0) as total
-        FROM debts d $orgSql AND d.created >= ? AND d.created <= DATE_ADD(?, INTERVAL 1 DAY)
+        FROM debts d $whereAnd d.created >= ? AND d.created <= DATE_ADD(?, INTERVAL 1 DAY)
         GROUP BY DATE_FORMAT(d.created, '%Y-%m') ORDER BY month ASC");
     if ($orgParams) {
         $stmt->execute([$params[0], $from, $to]);
@@ -343,7 +349,7 @@ function handleReportsTransport() {
     $stmt = $db->prepare("SELECT
         COUNT(*) as total_lines,
         SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_lines
-        FROM lines $orgSql");
+        FROM `lines` $orgSql");
     if ($orgParams) $stmt->execute($orgParams); else $stmt->execute();
     $linesSummary = $stmt->fetch();
 
@@ -353,9 +359,9 @@ function handleReportsTransport() {
         SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_vehicles,
         SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended_vehicles,
         SUM(CASE WHEN status = 'out_of_service' THEN 1 ELSE 0 END) as out_of_service_vehicles,
-        v.type_id, vt.name as type_name, COUNT(*) as type_count
-        FROM vehicles v LEFT JOIN vehicle_types vt ON v.type_id = vt.id $orgSql
-        GROUP BY v.type_id, vt.name ORDER BY type_count DESC");
+        v.vehicle_type_id, vt.name as type_name, COUNT(*) as type_count
+        FROM vehicles v LEFT JOIN vehicle_types vt ON v.vehicle_type_id = vt.id $orgSql
+        GROUP BY v.vehicle_type_id, vt.name ORDER BY type_count DESC");
     if ($orgParams) $stmt->execute($orgParams); else $stmt->execute();
     $vehiclesByType = $stmt->fetchAll();
 
@@ -428,6 +434,12 @@ function handleReportsMembers() {
     $orgFilter = getReportOrgFilter($user, $params);
     $orgSql = $orgFilter ? 'WHERE organization_id = ?' : '';
     $orgParams = $orgFilter ? [$params[0]] : [];
+    $orgSqlM = $orgFilter ? 'WHERE m.organization_id = ?' : '';
+    $orgSqlD = $orgFilter ? 'WHERE d.organization_id = ?' : '';
+    $orgSqlMc = $orgFilter ? 'WHERE mc.organization_id = ?' : '';
+    $whereAndM = $orgSqlM ? "$orgSqlM AND" : "WHERE";
+    $whereAndD = $orgSqlD ? "$orgSqlD AND" : "WHERE";
+    $whereAndMc = $orgSqlMc ? "$orgSqlMc AND" : "WHERE";
 
     // Members summary
     $stmt = $db->prepare("SELECT
@@ -437,7 +449,7 @@ function handleReportsMembers() {
         SUM(CASE WHEN created >= ? AND created <= DATE_ADD(?, INTERVAL 1 DAY) THEN 1 ELSE 0 END) as new_members
         FROM members $orgSql");
     if ($orgParams) {
-        $stmt->execute([$params[0], $from, $to]);
+        $stmt->execute([$from, $to, $params[0]]);
     } else {
         $stmt->execute([$from, $to]);
     }
@@ -446,19 +458,19 @@ function handleReportsMembers() {
     // Members by parking
     $stmt = $db->prepare("SELECT m.parking_id, pk.name as parking_name, COUNT(*) as count
         FROM members m LEFT JOIN parkings pk ON m.parking_id = pk.id
-        $orgSql GROUP BY m.parking_id, pk.name ORDER BY count DESC LIMIT 20");
+        $orgSqlM GROUP BY m.parking_id, pk.name ORDER BY count DESC LIMIT 20");
     if ($orgParams) $stmt->execute($orgParams); else $stmt->execute();
     $byParking = $stmt->fetchAll();
 
     // Members with debt
     $stmt = $db->prepare("SELECT COUNT(DISTINCT d.member_id) as members_with_debt
-        FROM debts d $orgSql AND d.status IN ('pending', 'partially_paid')");
+        FROM debts d $whereAndD d.status IN ('pending', 'partially_paid')");
     if ($orgParams) $stmt->execute($orgParams); else $stmt->execute();
     $membersWithDebt = $stmt->fetch();
 
     // Members with active card
     $stmt = $db->prepare("SELECT COUNT(DISTINCT mc.member_id) as members_with_card
-        FROM member_cards mc $orgSql AND mc.status = 'active'");
+        FROM member_cards mc $whereAndMc mc.status = 'active'");
     if ($orgParams) $stmt->execute($orgParams); else $stmt->execute();
     $membersWithCard = $stmt->fetch();
 
