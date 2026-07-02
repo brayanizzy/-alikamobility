@@ -1,131 +1,202 @@
 
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Route, Routes, BrowserRouter as Router } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import { AuthProvider } from './contexts/AuthContext.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import OnlineStatusIndicator from './components/OnlineStatusIndicator.jsx';
+import { AGENT_TYPES } from './utils/roles.js';
 
 // Pages
-import HomePage from './pages/HomePage.jsx';
-import LoginPage from './pages/LoginPage.jsx';
-import SignupPage from './pages/SignupPage.jsx';
-import ParkingsPage from './pages/ParkingsPage.jsx';
+const HomePage = lazy(() => import('./pages/HomePage.jsx'));
+const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
+const SignupPage = lazy(() => import('./pages/SignupPage.jsx'));
+const PendingApprovalPage = lazy(() => import('./pages/PendingApprovalPage.jsx'));
+const ParkingsPage = lazy(() => import('./pages/ParkingsPage.jsx'));
 
 // Super Admin
-import SuperAdminDashboard from './pages/SuperAdminDashboard.jsx';
+const SuperAdminDashboard = lazy(() => import('./pages/SuperAdminDashboard.jsx'));
 
 // Admin
-import AdminAssociationDashboard from './pages/AdminAssociationDashboard.jsx';
-import MembersPage from './pages/MembersPage.jsx';
-import AgentsPage from './pages/AgentsPage.jsx';
+const AdminAssociationDashboard = lazy(() => import('./pages/AdminAssociationDashboard.jsx'));
+const ReportsPage = lazy(() => import('./pages/ReportsPage.jsx'));
+const MembersPage = lazy(() => import('./pages/MembersPage.jsx'));
+const AgentsPage = lazy(() => import('./pages/AgentsPage.jsx'));
 
 // Agent / Recouvreur
-import AgentDashboard from './pages/AgentDashboard.jsx';
-import ScannerPage from './pages/ScannerPage.jsx';
-import PaymentHistoryPage from './pages/PaymentHistoryPage.jsx';
-import MembersListPage from './pages/MembersListPage.jsx';
+const AgentDashboard = lazy(() => import('./pages/AgentDashboard.jsx'));
+const ScannerPage = lazy(() => import('./pages/ScannerPage.jsx'));
+const PaymentHistoryPage = lazy(() => import('./pages/PaymentHistoryPage.jsx'));
+const MembersListPage = lazy(() => import('./pages/MembersListPage.jsx'));
+const LatePaymentsPage = lazy(() => import('./pages/LatePaymentsPage.jsx'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'));
+const AgentProfilePage = lazy(() => import('./pages/AgentProfilePage.jsx'));
+const ComingSoonPage = lazy(() => import('./pages/ComingSoonPage.jsx'));
+
+const AppFallback = () => (
+  <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+    <div className="text-center">
+      <img src="/assets/images/logo.png" alt="Alika Mobility" className="h-12 w-auto mx-auto mb-4 rounded-xl border border-border/30 shadow-md" />
+      <p className="text-sm font-bold text-muted-foreground">Chargement Alika Mobility...</p>
+    </div>
+  </div>
+);
 
 function App() {
   return (
-    <Router>
-      <ScrollToTop />
-      <OnlineStatusIndicator />
-      <AuthProvider>
+    <ErrorBoundary>
+    <AuthProvider>
+      <Router>
+        <ScrollToTop />
+        <OnlineStatusIndicator />
+        <Suspense fallback={<AppFallback />}>
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
-          
-          {/* Super-Admin Routes */}
-          <Route 
-            path="/super-admin" 
+          <Route path="/pending-approval" element={<PendingApprovalPage />} />
+
+          {/* Super Admin Routes */}
+          <Route
+            path="/super-admin"
             element={
               <ProtectedRoute allowedRoles={['super-admin']}>
                 <SuperAdminDashboard />
               </ProtectedRoute>
-            } 
+            }
           />
-          
+
           {/* Admin Routes */}
-          <Route 
-            path="/dashboard" 
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminAssociationDashboard />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/parkings" 
+          <Route
+            path="/members"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <ParkingsPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/members" 
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['admin', 'agent']} allowedAgentTypes={[AGENT_TYPES.OFFICE_COLLECTOR]}>
                 <MembersPage />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/agents" 
+          <Route
+            path="/agents"
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AgentsPage />
               </ProtectedRoute>
-            } 
+            }
           />
-          
+          <Route
+            path="/parkings"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <ParkingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Agent Routes */}
-          <Route 
-            path="/agent" 
+          <Route
+            path="/agent"
             element={
               <ProtectedRoute allowedRoles={['agent']}>
                 <AgentDashboard />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/scanner" 
+          <Route
+            path="/scanner"
             element={
               <ProtectedRoute allowedRoles={['agent']}>
                 <ScannerPage />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/payment-history" 
+          <Route
+            path="/payments"
             element={
               <ProtectedRoute allowedRoles={['agent']}>
                 <PaymentHistoryPage />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/members-list" 
+          <Route
+            path="/payment-history"
+            element={
+              <ProtectedRoute allowedRoles={['agent']}>
+                <PaymentHistoryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/late-payments"
+            element={
+              <ProtectedRoute allowedRoles={['agent']}>
+                <LatePaymentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/members-list"
             element={
               <ProtectedRoute allowedRoles={['agent']}>
                 <MembersListPage />
               </ProtectedRoute>
-            } 
+            }
           />
 
-          {/* Fallback 404 */}
-          <Route path="*" element={
-            <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
-              <h1 className="text-5xl font-extrabold text-primary mb-4">404</h1>
-              <p className="text-xl mb-8">Page non trouvée</p>
-              <a href="/" className="px-6 py-3 rounded-full bg-primary text-primary-foreground font-bold hover:brightness-110 transition-all">Retour à l'accueil</a>
-            </div>
-          } />
+          {/* Agent Profile */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute allowedRoles={['agent']}>
+                <AgentProfilePage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Notification Routes */}
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}>
+                <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Coming Soon (placeholder pour modules pas encore développés) */}
+          <Route
+            path="/coming-soon/:module"
+            element={
+              <ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}>
+                <ComingSoonPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 404 Not Found */}
+          <Route path="*" element={<HomePage />} />
         </Routes>
-      </AuthProvider>
-    </Router>
+        </Suspense>
+      </Router>
+    </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

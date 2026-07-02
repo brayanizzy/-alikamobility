@@ -8,7 +8,7 @@ import { formatCurrency } from '@/utils/currency.js';
 import { AGENT_TYPE_LABELS, isOfficeCollector } from '@/utils/roles.js';
 import {
   ScanLine, Users, History, Loader2, AlertCircle, MapPin, User,
-  TrendingUp, DollarSign, ChevronRight, Clock, Activity
+  TrendingUp, DollarSign, ChevronRight, Clock, Activity, Bell
 } from 'lucide-react';
 
 const container = {
@@ -259,6 +259,15 @@ const AgentDashboard = () => {
                     <User className="w-6 h-6 text-muted-foreground" />
                   </div>
                   <span className="font-bold text-sm text-foreground">Mon Profil</span>
+                </Link>
+
+                <Link to="/notifications"
+                  className="bg-card border border-border rounded-2xl p-5 hover:bg-muted/50 active:scale-[0.97] transition-all flex flex-col items-center justify-center gap-3 shadow-card"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                    <Bell className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <span className="font-bold text-sm text-foreground">Notifications</span>
                 </Link>
               </motion.div>
             </>

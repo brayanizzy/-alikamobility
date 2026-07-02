@@ -8,7 +8,7 @@ import { generateDailyReport } from '@/utils/DailyReportPDF.jsx';
 import {
   Users, CreditCard, MapPin, BarChart3, Loader2, ArrowUpRight, AlertCircle,
   Percent, FileText, UserPlus, TrendingUp, DollarSign, Clock, Activity,
-  ChevronRight, RefreshCw
+  ChevronRight, RefreshCw, UserCircle, Car
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/utils/currency.js';
@@ -396,6 +396,28 @@ const AdminAssociationDashboard = () => {
                   </div>
                   <span className="font-bold text-foreground text-sm">Rapport</span>
                 </button>
+                <Link to="/coming-soon/drivers"
+                  className="bg-card border border-border rounded-2xl p-5 hover:bg-muted/50 transition-all shadow-card flex flex-col items-center justify-center gap-3 text-center group"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500/20 transition-colors group-hover:scale-110 transition-transform">
+                    <UserCircle className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <span className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                    Chauffeurs
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold">Bientôt</span>
+                  </span>
+                </Link>
+                <Link to="/coming-soon/vehicles"
+                  className="bg-card border border-border rounded-2xl p-5 hover:bg-muted/50 transition-all shadow-card flex flex-col items-center justify-center gap-3 text-center group"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors group-hover:scale-110 transition-transform">
+                    <Car className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <span className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                    Véhicules
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold">Bientôt</span>
+                  </span>
+                </Link>
               </div>
             </motion.div>
 

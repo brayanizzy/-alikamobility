@@ -2,13 +2,23 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import { LogOut, LayoutDashboard, Users, CreditCard, ScanLine, Menu, X, ChevronRight } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { NAV_ITEMS } from '@/config/navigation.js';
+import { LogOut, LayoutDashboard, Menu, Sun, Moon } from 'lucide-react';
+import NotificationBell from '@/components/NotificationBell.jsx';
+import MobileMenu from '@/components/MobileMenu.jsx';
+import AppBreadcrumb from '@/components/AppBreadcrumb.jsx';
+import { AGENT_TYPE_LABELS } from '@/utils/roles.js';
 
 const Header = () => {
   const { isAuthenticated, currentUser, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => setMounted(true), []);
 
   const handleLogout = () => {
     logout();
@@ -26,98 +36,105 @@ const Header = () => {
   };
 
   const isActive = (path) => location.pathname === path;
-  
-  const navLinkClass = (path) => `flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+
+  const navLinkClass = (path) => `flex items-center gap-2 px-3 py-2 rounded-lg transition-colors whitespace-nowrap ${
     isActive(path) 
       ? 'bg-primary/20 text-primary font-semibold' 
       : 'text-muted-foreground hover:bg-muted hover:text-foreground font-medium'
   }`;
 
-  // Breadcrumb generator
-  const getBreadcrumb = () => {
-    const paths = location.pathname.split('/').filter(Boolean);
-    if (paths.length === 0 || paths[0] === '') return null;
-    
-    return (
-      <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground ml-6 bg-card border border-border px-3 py-1 rounded-full">
-        <Link to={getDashboardLink()} className="hover:text-primary transition-colors">Portail</Link>
-        {paths.map((p, idx) => {
-          // Skip if it's the root dashboard equivalent
-          if (p === 'dashboard' || p === 'super-admin' || p === 'agent') return null;
-          return (
-            <React.Fragment key={p}>
-              <ChevronRight className="w-3 h-3" />
-              <span className="capitalize text-foreground font-medium">{p.replace('-', ' ')}</span>
-            </React.Fragment>
-          );
-        })}
-      </div>
-    );
+  const getDesktopNavItems = () => {
+    if (!currentUser) return [];
+    if (currentUser.role === 'admin') {
+      return NAV_ITEMS.admin.main.slice(0, 6);
+    }
+    return [];
   };
 
   return (
+    <>
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm shadow-black/20">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/20">
-              <span className="font-bold text-primary-foreground text-lg">A</span>
-            </div>
+        <div className="flex items-center gap-4 min-w-0">
+          <Link to="/" className="flex items-center gap-3 shrink-0">
+            <img src="/assets/images/logo.png" alt="Alika Mobility" className="h-9 w-auto rounded-lg border border-border/30 shadow-sm" />
             <span className="font-bold text-xl tracking-tight text-foreground hidden sm:block">
               Alika <span className="text-secondary">Mobility</span>
             </span>
           </Link>
-          {isAuthenticated && getBreadcrumb()}
+          {isAuthenticated && (
+            <div className="hidden lg:block">
+              <AppBreadcrumb />
+            </div>
+          )}
         </div>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-2">
+        <nav className="hidden md:flex items-center gap-1">
           {!isAuthenticated ? (
-            <Link 
-              to="/login" 
-              className="px-6 py-2.5 rounded-full bg-primary text-primary-foreground font-bold text-sm transition-transform hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
-            >
-              Connexion
-            </Link>
-          ) : (
             <div className="flex items-center gap-2">
-              <Link to={getDashboardLink()} className={navLinkClass(getDashboardLink())}>
-                <LayoutDashboard className="w-4 h-4" /> Accueil
+              <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium px-3 py-2">
+                Accueil
               </Link>
-              
-              {currentUser.role === 'admin' && (
-                <>
-                  <Link to="/members" className={navLinkClass('/members')}>
-                    <Users className="w-4 h-4" /> Membres
+              <Link to="/signup" className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center gap-2">
+                <LayoutDashboard className="w-4 h-4" /> Créer mon association
+              </Link>
+              <Link to="/login" className="px-5 py-2.5 rounded-lg bg-muted text-foreground font-bold text-sm hover:bg-muted/80 transition-all flex items-center gap-2">
+                <LogOut className="w-4 h-4 rotate-180" /> Connexion
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              {currentUser.role === 'admin' && getDesktopNavItems().map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link key={item.path} to={item.path} className={navLinkClass(item.path)}>
+                    <Icon className="w-4 h-4" /> {item.label}
                   </Link>
-                </>
-              )}
+                );
+              })}
 
               {currentUser.role === 'agent' && (
                 <>
+                  <Link to="/agent" className={navLinkClass('/agent')}>
+                    <LayoutDashboard className="w-4 h-4" /> Accueil
+                  </Link>
                   <Link to="/scanner" className={navLinkClass('/scanner')}>
-                    <ScanLine className="w-4 h-4" /> Scanner
+                    <LayoutDashboard className="w-4 h-4" /> Scanner
                   </Link>
                   <Link to="/payment-history" className={navLinkClass('/payment-history')}>
-                    <CreditCard className="w-4 h-4" /> Historique
-                  </Link>
-                  <Link to="/members-list" className={navLinkClass('/members-list')}>
-                    <Users className="w-4 h-4" /> Membres
+                    <LayoutDashboard className="w-4 h-4" /> Historique
                   </Link>
                 </>
               )}
               
-              <div className="h-6 w-px bg-border mx-2"></div>
+              <NotificationBell />
+
+              {mounted && (
+                <button
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="p-2 rounded-xl bg-card hover:bg-muted border border-border text-muted-foreground hover:text-foreground transition-all"
+                  aria-label="Changer le thème"
+                >
+                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </button>
+              )}
               
-              <div className="flex items-center gap-3 ml-2">
-                <div className="flex flex-col items-end">
-                  <span className="text-sm font-bold text-foreground leading-none">{currentUser.name || currentUser.email.split('@')[0]}</span>
-                  <span className="text-xs text-secondary capitalize mt-1 font-medium">{currentUser.role}</span>
+              <div className="h-6 w-px bg-border mx-1"></div>
+              
+              <div className="flex items-center gap-2 ml-1">
+                <div className="flex flex-col items-end leading-tight">
+                  <span className="text-sm font-bold text-foreground">{currentUser.name || currentUser.email?.split('@')[0]}</span>
+                  <span className="text-[11px] text-secondary font-medium">
+                    {currentUser.role === 'agent' ? AGENT_TYPE_LABELS[currentUser.agent_type] || 'Récupérateur terrain' : 
+                     currentUser.role === 'admin' ? 'Administrateur' :
+                     currentUser.role === 'super-admin' ? 'Super Admin' : currentUser.role}
+                  </span>
                 </div>
                 <button 
                   onClick={handleLogout}
                   className="p-2 rounded-xl bg-card hover:bg-destructive/20 border border-border hover:border-destructive/30 text-muted-foreground hover:text-destructive transition-all"
-                  aria-label="Logout"
+                  aria-label="Déconnexion"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -126,56 +143,26 @@ const Header = () => {
           )}
         </nav>
 
-        {/* Mobile Menu Toggle */}
-        <div className="md:hidden flex items-center">
+        {/* Mobile controls */}
+        <div className="md:hidden flex items-center gap-2">
           {isAuthenticated && (
-            <button 
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-foreground"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            <>
+              <NotificationBell />
+              <button 
+                onClick={() => setMobileMenuOpen(true)}
+                className="p-2 text-foreground hover:bg-muted rounded-lg transition-colors"
+                aria-label="Menu"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+            </>
           )}
         </div>
       </div>
-
-      {/* Mobile Menu */}
-      {mobileMenuOpen && isAuthenticated && (
-        <div className="md:hidden absolute top-16 left-0 w-full bg-card border-b border-border shadow-xl py-4 px-4 flex flex-col gap-2 z-50">
-          <Link to={getDashboardLink()} onClick={() => setMobileMenuOpen(false)} className={navLinkClass(getDashboardLink())}>
-            <LayoutDashboard className="w-5 h-5" /> Accueil
-          </Link>
-          
-          {currentUser.role === 'admin' && (
-            <Link to="/members" onClick={() => setMobileMenuOpen(false)} className={navLinkClass('/members')}>
-              <Users className="w-5 h-5" /> Gestion des Membres
-            </Link>
-          )}
-
-          {currentUser.role === 'agent' && (
-            <>
-              <Link to="/scanner" onClick={() => setMobileMenuOpen(false)} className={navLinkClass('/scanner')}>
-                <ScanLine className="w-5 h-5" /> Scanner QR
-              </Link>
-              <Link to="/payment-history" onClick={() => setMobileMenuOpen(false)} className={navLinkClass('/payment-history')}>
-                <CreditCard className="w-5 h-5" /> Historique Paiements
-              </Link>
-              <Link to="/members-list" onClick={() => setMobileMenuOpen(false)} className={navLinkClass('/members-list')}>
-                <Users className="w-5 h-5" /> Mes Membres
-              </Link>
-            </>
-          )}
-          
-          <div className="h-px bg-border my-2"></div>
-          <button 
-            onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
-            className="flex items-center gap-3 px-3 py-3 text-destructive font-medium rounded-lg hover:bg-destructive/10"
-          >
-            <LogOut className="w-5 h-5" /> Déconnexion
-          </button>
-        </div>
-      )}
     </header>
+
+    <MobileMenu isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} onLogout={handleLogout} />
+  </>
   );
 };
 
