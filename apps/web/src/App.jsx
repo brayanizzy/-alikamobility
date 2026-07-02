@@ -45,6 +45,18 @@ const OwnersPage = lazy(() => import('./pages/OwnersPage.jsx'));
 const OwnerCreatePage = lazy(() => import('./pages/OwnerCreatePage.jsx'));
 const OwnerDetailPage = lazy(() => import('./pages/OwnerDetailPage.jsx'));
 
+// Module 4 - Vehicles
+const VehiclesPage = lazy(() => import('./pages/VehiclesPage.jsx'));
+const VehicleCreatePage = lazy(() => import('./pages/VehicleCreatePage.jsx'));
+const VehicleDetailPage = lazy(() => import('./pages/VehicleDetailPage.jsx'));
+const VehicleEditPage = lazy(() => import('./pages/VehicleEditPage.jsx'));
+
+// Module 4 - Documents
+const DocumentsPage = lazy(() => import('./pages/DocumentsPage.jsx'));
+const DocumentCreatePage = lazy(() => import('./pages/DocumentCreatePage.jsx'));
+const DocumentDetailPage = lazy(() => import('./pages/DocumentDetailPage.jsx'));
+const DocumentEditPage = lazy(() => import('./pages/DocumentEditPage.jsx'));
+
 const AppFallback = () => (
   <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
     <div className="text-center">
@@ -247,6 +259,26 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+
+          {/* Vehicle Routes */}
+          <Route path="/vehicles"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><VehiclesPage /></ProtectedRoute>} />
+          <Route path="/vehicles/new"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin']}><VehicleCreatePage /></ProtectedRoute>} />
+          <Route path="/vehicles/:id"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><VehicleDetailPage /></ProtectedRoute>} />
+          <Route path="/vehicles/:id/edit"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin']}><VehicleEditPage /></ProtectedRoute>} />
+
+          {/* Document Routes */}
+          <Route path="/documents"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><DocumentsPage /></ProtectedRoute>} />
+          <Route path="/documents/new"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin']}><DocumentCreatePage /></ProtectedRoute>} />
+          <Route path="/documents/:id"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><DocumentDetailPage /></ProtectedRoute>} />
+          <Route path="/documents/:id/edit"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin']}><DocumentEditPage /></ProtectedRoute>} />
 
           {/* Coming Soon (placeholder pour modules pas encore développés) */}
           <Route

@@ -27,13 +27,13 @@ export const NAV_ITEMS = {
     transport: [
       { label: 'Chauffeurs', path: '/drivers', icon: UserCircle },
       { label: 'Propriétaires', path: '/owners', icon: UserCircle },
-      { label: 'Véhicules', path: '/coming-soon/vehicles', icon: Car },
+      { label: 'Véhicules', path: '/vehicles', icon: Car },
       { label: 'Lignes', path: '/coming-soon/lines', icon: Route },
       { label: 'Affectations', path: '/coming-soon/assignments', icon: ClipboardCheck },
     ],
     finances: [
       { label: 'Dettes', path: '/coming-soon/debts', icon: BookOpen },
-      { label: 'Documents', path: '/coming-soon/documents', icon: FileText },
+      { label: 'Documents', path: '/documents', icon: FileText },
       { label: 'Cartes membres', path: '/coming-soon/member-cards', icon: CreditCard },
     ],
   },
@@ -63,7 +63,7 @@ export const QUICK_ACTIONS = {
     { label: 'Rapports', path: '/reports', icon: BarChart3 },
     { label: 'Scanner QR', path: '/scanner', icon: ScanLine, agentOnly: true },
     { label: 'Chauffeurs', path: '/drivers', icon: UserCircle },
-    { label: 'Véhicules', path: '/coming-soon/vehicles', icon: Car, comingSoon: true },
+    { label: 'Véhicules', path: '/vehicles', icon: Car },
   ],
   agent: [
     { label: 'Scanner QR', path: '/scanner', icon: ScanLine },
