@@ -89,6 +89,16 @@ const PenaltyEditPage = lazy(() => import('./pages/PenaltyEditPage.jsx'));
 const ReceiptsPage = lazy(() => import('./pages/ReceiptsPage.jsx'));
 const ReceiptDetailPage = lazy(() => import('./pages/ReceiptDetailPage.jsx'));
 
+// Module 7 - Member Cards
+const MemberCardsPage = lazy(() => import('./pages/MemberCardsPage.jsx'));
+const MemberCardCreatePage = lazy(() => import('./pages/MemberCardCreatePage.jsx'));
+const MemberCardDetailPage = lazy(() => import('./pages/MemberCardDetailPage.jsx'));
+const MemberCardEditPage = lazy(() => import('./pages/MemberCardEditPage.jsx'));
+const MemberCardPrintPage = lazy(() => import('./pages/MemberCardPrintPage.jsx'));
+
+// Module 7 - Card Verification (public)
+const CardVerifyPage = lazy(() => import('./pages/CardVerifyPage.jsx'));
+
 const AppFallback = () => (
   <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
     <div className="text-center">
@@ -363,6 +373,21 @@ function AppContent() {
             element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><ReceiptsPage /></ProtectedRoute>} />
           <Route path="/receipts/:id"
             element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><ReceiptDetailPage /></ProtectedRoute>} />
+
+          {/* Module 7 - Member Card Routes */}
+          <Route path="/member-cards"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><MemberCardsPage /></ProtectedRoute>} />
+          <Route path="/member-cards/new"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin']}><MemberCardCreatePage /></ProtectedRoute>} />
+          <Route path="/member-cards/:id"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><MemberCardDetailPage /></ProtectedRoute>} />
+          <Route path="/member-cards/:id/edit"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin']}><MemberCardEditPage /></ProtectedRoute>} />
+          <Route path="/member-cards/:id/print"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><MemberCardPrintPage /></ProtectedRoute>} />
+
+          {/* Module 7 - Card Verification (public, no auth) */}
+          <Route path="/verify/card/:cardNumber" element={<CardVerifyPage />} />
 
           {/* Coming Soon (placeholder pour modules pas encore développés) */}
           <Route

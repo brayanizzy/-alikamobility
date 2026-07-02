@@ -45,6 +45,7 @@ function getCollectionConfig() {
             'member_cards' => [
                 'required' => ['organization_id', 'member_id', 'card_number', 'issued_date'],
                 'status' => ['active', 'expired', 'lost', 'replaced', 'cancelled'],
+                'card_type' => ['standard', 'premium', 'vip'],
             ],
         ],
         'permissions' => [
@@ -116,6 +117,13 @@ function validateCollectionData($collection, $data) {
         $val = $data['related_type'] ?? null;
         if ($val !== null && !in_array($val, $rules['related_type'])) {
             $errors[] = "Type lié invalide : '$val'. Valeurs autorisées : " . implode(', ', $rules['related_type']);
+        }
+    }
+
+    if (!empty($rules['card_type'])) {
+        $val = $data['card_type'] ?? null;
+        if ($val !== null && !in_array($val, $rules['card_type'])) {
+            $errors[] = "Type de carte invalide : '$val'. Valeurs autorisées : " . implode(', ', $rules['card_type']);
         }
     }
 

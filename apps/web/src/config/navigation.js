@@ -36,7 +36,7 @@ export const NAV_ITEMS = {
       { label: 'Pénalités', path: '/penalties', icon: Ban },
       { label: 'Reçus', path: '/receipts', icon: FileText },
       { label: 'Documents', path: '/documents', icon: FileText },
-      { label: 'Cartes membres', path: '/coming-soon/member-cards', icon: CreditCard },
+      { label: 'Cartes membres', path: '/member-cards', icon: CreditCard },
     ],
   },
   agent: {

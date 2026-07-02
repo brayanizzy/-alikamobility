@@ -34,6 +34,7 @@ try {
         'POST /auth/signup' => 'handleSignup',
         'GET /cron/daily-collection-check' => 'handleDailyCollectionCheck',
         'POST /finance/pay-debt' => 'handlePayDebt',
+        'GET /cards/verify' => 'handleCardVerify',
     ];
 
     $key = "$method $path";
@@ -59,6 +60,67 @@ try {
     $errorMsg = $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine();
     error_log('Alika API Error: ' . $errorMsg);
     jsonResponse(['error' => 'Internal server error'], 500);
+}
+
+function handleCardVerify() {
+    $cardNumber = $_GET['card_number'] ?? null;
+    if (!$cardNumber) {
+        jsonResponse(['error' => 'card_number is required'], 400);
+    }
+
+    $db = getDB();
+
+    // Find the card
+    $stmt = $db->prepare("SELECT * FROM member_cards WHERE card_number = ? LIMIT 1");
+    $stmt->execute([$cardNumber]);
+    $card = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$card) {
+        jsonResponse(['error' => 'Carte introuvable'], 404);
+    }
+
+    // Find the member (limited public data)
+    $member = null;
+    if ($card['member_id']) {
+        $stmt = $db->prepare("SELECT id, name, member_code, status FROM members WHERE id = ? LIMIT 1");
+        $stmt->execute([$card['member_id']]);
+        $member = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    // Check for open debt on this member
+    $openDebt = null;
+    if ($card['member_id']) {
+        $stmt = $db->prepare("SELECT id, amount_original, amount_remaining, status, currency FROM debts WHERE member_id = ? AND organization_id = ? AND status IN ('pending', 'partially_paid') LIMIT 1");
+        $stmt->execute([$card['member_id'], $card['organization_id']]);
+        $openDebt = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    // Return limited public data (no phone, email, address)
+    $response = [
+        'valid' => $card['status'] === 'active',
+        'card' => [
+            'card_number' => $card['card_number'],
+            'card_type' => $card['card_type'],
+            'issued_date' => $card['issued_date'],
+            'expiry_date' => $card['expiry_date'],
+            'status' => $card['status'],
+        ],
+        'member' => $member ? [
+            'id' => $member['id'],
+            'name' => $member['name'],
+            'member_code' => $member['member_code'],
+            'status' => $member['status'],
+        ] : null,
+        'openDebt' => $openDebt ? [
+            'id' => $openDebt['id'],
+            'amount_original' => $openDebt['amount_original'],
+            'amount_remaining' => $openDebt['amount_remaining'],
+            'status' => $openDebt['status'],
+            'currency' => $openDebt['currency'] ?? 'CDF',
+        ] : null,
+    ];
+
+    jsonResponse($response);
 }
 
 function handlePayDebt() {
