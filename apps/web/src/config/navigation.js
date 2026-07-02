@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Building2, Users, CreditCard, MapPin, ScanLine,
   BarChart3, Bell, Settings, Truck, UserCircle, Car, LineChart,
   Route, ClipboardCheck, FileText, DollarSign, BookOpen, QrCode,
-  Shield, HardDrive, Smartphone, UserCog, Activity, Clock
+  Shield, HardDrive, Smartphone, UserCog, Activity, Clock, Ban
 } from 'lucide-react';
 
 export const NAV_ITEMS = {
@@ -32,7 +32,9 @@ export const NAV_ITEMS = {
       { label: 'Affectations', path: '/assignments', icon: ClipboardCheck },
     ],
     finances: [
-      { label: 'Dettes', path: '/coming-soon/debts', icon: BookOpen },
+      { label: 'Dettes', path: '/debts', icon: BookOpen },
+      { label: 'Pénalités', path: '/penalties', icon: Ban },
+      { label: 'Reçus', path: '/receipts', icon: FileText },
       { label: 'Documents', path: '/documents', icon: FileText },
       { label: 'Cartes membres', path: '/coming-soon/member-cards', icon: CreditCard },
     ],

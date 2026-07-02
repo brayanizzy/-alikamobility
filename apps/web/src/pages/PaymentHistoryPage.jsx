@@ -5,14 +5,17 @@ import PaginationControls from '@/components/PaginationControls.jsx';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Search, Loader2, Calendar } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/utils/currency.js';
+import PaymentMethodBadge from '@/components/finance/PaymentMethodBadge.jsx';
 
 const PaymentHistoryPage = () => {
   const { currentUser } = useAuth();
   const [payments, setPayments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [methodFilter, setMethodFilter] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -28,8 +31,15 @@ const PaymentHistoryPage = () => {
       const todayStr = today.toISOString().split('T')[0];
       const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
+      const filterParts = [`organization_id = "${currentUser.organization_id}"`, `payment_date >= "${todayStr}"`, `payment_date < "${tomorrowStr}"`];
+      const role = currentUser?.role;
+      if (role === 'agent') {
+        filterParts.push(`recorded_by = "${currentUser.name || currentUser.email}"`);
+      }
+      if (methodFilter) filterParts.push(`payment_method = "${methodFilter}"`);
+
       const recordsRes = await pb.collection('payments').getList(p, 50, {
-        filter: `organization_id = "${currentUser.organization_id}" && recorded_by = "${currentUser.name || currentUser.email}" && payment_date >= "${todayStr}" && payment_date < "${tomorrowStr}"`,
+        filter: filterParts.join(' && '),
         sort: '-created',
         $autoCancel: false
       });
@@ -62,11 +72,11 @@ const PaymentHistoryPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser, methodFilter]);
 
   useEffect(() => {
     fetchTodayPayments(1);
-  }, [currentUser]);
+  }, [currentUser, methodFilter]);
 
   const handlePageChange = (newPage) => {
     if (newPage < 1 || newPage > totalPages) return;
@@ -80,7 +90,7 @@ const PaymentHistoryPage = () => {
   const totalAmount = filteredPayments.reduce((acc, curr) => acc + curr.amount, 0);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col pb-16">
       <Header />
       
       <main className="flex-1 max-w-3xl mx-auto w-full p-4 sm:p-6 lg:p-8">
@@ -100,15 +110,25 @@ const PaymentHistoryPage = () => {
           </div>
         </div>
 
-        <div className="relative mb-6">
-          <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input 
-            type="text" 
-            placeholder="Rechercher un membre..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-14 pl-12 pr-4 rounded-xl bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
-          />
+        <div className="flex flex-wrap gap-3 mb-6">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input 
+              type="text" 
+              placeholder="Rechercher un membre..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-14 pl-12 pr-4 rounded-xl bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+            />
+          </div>
+          <select value={methodFilter} onChange={(e) => { setMethodFilter(e.target.value); setPage(1); }}
+            className="bg-card border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all">
+            <option value="">Toutes méthodes</option>
+            <option value="cash">Espèces</option>
+            <option value="mobile_money">Mobile Money</option>
+            <option value="bank">Banque</option>
+            <option value="other">Autre</option>
+          </select>
         </div>
 
         {isLoading ? (
@@ -131,8 +151,9 @@ const PaymentHistoryPage = () => {
                       </div>
                       <div>
                         <p className="font-bold text-foreground text-lg">{payment.member.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(payment.created).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {payment.payment_method}
+                        <p className="text-sm text-muted-foreground flex items-center gap-1 flex-wrap">
+                          {new Date(payment.created).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          <PaymentMethodBadge method={payment.payment_method} />
                         </p>
                       </div>
                     </div>

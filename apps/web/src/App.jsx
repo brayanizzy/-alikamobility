@@ -72,6 +72,23 @@ const AssignmentEditPage = lazy(() => import('./pages/AssignmentEditPage.jsx'));
 // Module 5 - Parking Detail
 const ParkingDetailPage = lazy(() => import('./pages/ParkingDetailPage.jsx'));
 
+// Module 6 - Debts
+const DebtsPage = lazy(() => import('./pages/DebtsPage.jsx'));
+const DebtCreatePage = lazy(() => import('./pages/DebtCreatePage.jsx'));
+const DebtDetailPage = lazy(() => import('./pages/DebtDetailPage.jsx'));
+const DebtEditPage = lazy(() => import('./pages/DebtEditPage.jsx'));
+const DebtPaymentPage = lazy(() => import('./pages/DebtPaymentPage.jsx'));
+
+// Module 6 - Penalties
+const PenaltiesPage = lazy(() => import('./pages/PenaltiesPage.jsx'));
+const PenaltyCreatePage = lazy(() => import('./pages/PenaltyCreatePage.jsx'));
+const PenaltyDetailPage = lazy(() => import('./pages/PenaltyDetailPage.jsx'));
+const PenaltyEditPage = lazy(() => import('./pages/PenaltyEditPage.jsx'));
+
+// Module 6 - Receipts
+const ReceiptsPage = lazy(() => import('./pages/ReceiptsPage.jsx'));
+const ReceiptDetailPage = lazy(() => import('./pages/ReceiptDetailPage.jsx'));
+
 const AppFallback = () => (
   <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
     <div className="text-center">
@@ -318,6 +335,34 @@ function AppContent() {
             element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><AssignmentDetailPage /></ProtectedRoute>} />
           <Route path="/assignments/:id/edit"
             element={<ProtectedRoute allowedRoles={['super-admin', 'admin']}><AssignmentEditPage /></ProtectedRoute>} />
+
+          {/* Module 6 - Debt Routes */}
+          <Route path="/debts"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'office_collector']}><DebtsPage /></ProtectedRoute>} />
+          <Route path="/debts/new"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'office_collector']}><DebtCreatePage /></ProtectedRoute>} />
+          <Route path="/debts/:id"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'office_collector']}><DebtDetailPage /></ProtectedRoute>} />
+          <Route path="/debts/:id/edit"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'office_collector']}><DebtEditPage /></ProtectedRoute>} />
+          <Route path="/debts/:id/pay"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'office_collector']}><DebtPaymentPage /></ProtectedRoute>} />
+
+          {/* Module 6 - Penalty Routes */}
+          <Route path="/penalties"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'office_collector']}><PenaltiesPage /></ProtectedRoute>} />
+          <Route path="/penalties/new"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'office_collector']}><PenaltyCreatePage /></ProtectedRoute>} />
+          <Route path="/penalties/:id"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'office_collector']}><PenaltyDetailPage /></ProtectedRoute>} />
+          <Route path="/penalties/:id/edit"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'office_collector']}><PenaltyEditPage /></ProtectedRoute>} />
+
+          {/* Module 6 - Receipt Routes */}
+          <Route path="/receipts"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><ReceiptsPage /></ProtectedRoute>} />
+          <Route path="/receipts/:id"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><ReceiptDetailPage /></ProtectedRoute>} />
 
           {/* Coming Soon (placeholder pour modules pas encore développés) */}
           <Route
