@@ -7,9 +7,16 @@ import pb from '@/lib/pocketbaseClient';
 import { formatCurrency } from '@/utils/currency.js';
 import { isOfficeCollector } from '@/utils/roles.js';
 import {
+  isOnline, getPendingSyncCount, getLastSyncTimestamp
+} from '@/utils/OfflineService.js';
+import { formatLastSync } from '@/utils/SyncService.js';
+import NetworkStatusBadge from '@/components/offline/NetworkStatusBadge.jsx';
+import OfflineQueuePanel from '@/components/offline/OfflineQueuePanel.jsx';
+import SyncButton from '@/components/offline/SyncButton.jsx';
+import {
   ScanLine, Users, History, Loader2, AlertCircle, MapPin, User,
   TrendingUp, DollarSign, ChevronRight, Clock, Activity, Bell,
-  Smartphone, Landmark, Receipt, Ban, CheckCircle2
+  Smartphone, Landmark, Receipt, Ban, CheckCircle2, Upload, WifiOff
 } from 'lucide-react';
 
 const container = {
@@ -33,7 +40,29 @@ const AgentDashboard = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [notifCount, setNotifCount] = useState(0);
+  const [pendingQueueCount, setPendingQueueCount] = useState(0);
+  const [lastSyncLabel, setLastSyncLabel] = useState('');
   const officeMode = isOfficeCollector(currentUser);
+
+  useEffect(() => {
+    const refreshOffline = async () => {
+      const count = await getPendingSyncCount();
+      setPendingQueueCount(count);
+      setLastSyncLabel(await formatLastSync());
+    };
+    refreshOffline();
+    const interval = setInterval(refreshOffline, 15000);
+    const handleChange = () => refreshOffline();
+    window.addEventListener('alika:sync-count-changed', handleChange);
+    window.addEventListener('alika:sync-end', handleChange);
+    window.addEventListener('alika:sync-error', handleChange);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('alika:sync-count-changed', handleChange);
+      window.removeEventListener('alika:sync-end', handleChange);
+      window.removeEventListener('alika:sync-error', handleChange);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchTodayStats = async () => {
@@ -134,12 +163,15 @@ const AgentDashboard = () => {
         >
           {/* Profile Header */}
           <motion.div variants={item} className="text-center mb-4">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 text-xs font-bold tracking-wide mb-3">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-              </span>
-              {officeMode ? 'MODE BUREAU' : 'TERRAIN'}
+            <div className="flex flex-wrap justify-center gap-2 mb-3">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 text-xs font-bold tracking-wide">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                </span>
+                {officeMode ? 'MODE BUREAU' : 'TERRAIN'}
+              </div>
+              <NetworkStatusBadge showLabel showCount={false} className="text-[10px]" />
             </div>
             <div className="mx-auto mb-2 h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-secondary overflow-hidden border-2 border-border flex items-center justify-center shadow-elevated">
               {currentUser.avatar ? (
@@ -366,13 +398,35 @@ const AgentDashboard = () => {
             )}
           </motion.div>
 
-          {/* Sync indicator */}
+          {/* Offline queue panel */}
           <motion.div variants={item} className="mb-4">
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-2">
-              <CheckCircle2 className="w-3 h-3 text-green-500" />
-              <span>Synchronisé</span>
-              <span className="text-muted-foreground/50">•</span>
-              <span className="text-muted-foreground/70">{new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+            <OfflineQueuePanel compact showTitle />
+          </motion.div>
+
+          {/* Sync status bar */}
+          <motion.div variants={item} className="mb-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                {!isOnline() ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-destructive/10 text-destructive">
+                    <WifiOff className="w-3 h-3" />
+                    Hors ligne
+                  </span>
+                ) : pendingQueueCount > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-yellow-500/10 text-yellow-600">
+                    <Upload className="w-3 h-3" />
+                    {pendingQueueCount} en attente
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-500/10 text-green-600">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Synchronisé
+                  </span>
+                )}
+                <span className="text-muted-foreground/50">•</span>
+                <span>{lastSyncLabel || 'Jamais'}</span>
+              </div>
+              <SyncButton variant="icon" />
             </div>
           </motion.div>
         </motion.div>

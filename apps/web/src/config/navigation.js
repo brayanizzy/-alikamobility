@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Building2, Users, CreditCard, MapPin, ScanLine,
   BarChart3, Bell, Settings, Truck, UserCircle, Car, LineChart,
   Route, ClipboardCheck, FileText, DollarSign, BookOpen, QrCode,
-  Shield, HardDrive, Smartphone, UserCog, Activity, Clock, Ban
+  Shield, HardDrive, Smartphone, UserCog, Activity, Clock, Ban, Upload
 } from 'lucide-react';
 
 export const NAV_ITEMS = {
@@ -43,6 +43,8 @@ export const NAV_ITEMS = {
     field_collector: [
       { label: 'Accueil', path: '/agent', icon: LayoutDashboard },
       { label: 'Scanner QR', path: '/scanner', icon: ScanLine },
+      { label: 'Paiement hors ligne', path: '/offline-payment', icon: Smartphone },
+      { label: 'Sync', path: '/sync', icon: Upload },
       { label: 'Historique', path: '/payment-history', icon: CreditCard },
       { label: 'Membres', path: '/members-list', icon: Users },
       { label: 'Notifications', path: '/notifications', icon: Bell },
@@ -51,7 +53,7 @@ export const NAV_ITEMS = {
       { label: 'Accueil', path: '/agent', icon: LayoutDashboard },
       { label: 'Paiements', path: '/payment-history', icon: CreditCard },
       { label: 'Membres', path: '/members', icon: Users },
-      { label: 'Dettes', path: '/coming-soon/debts', icon: BookOpen },
+      { label: 'Sync', path: '/sync', icon: Upload },
       { label: 'Notifications', path: '/notifications', icon: Bell },
     ],
   },

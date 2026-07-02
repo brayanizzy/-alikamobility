@@ -99,6 +99,10 @@ const MemberCardPrintPage = lazy(() => import('./pages/MemberCardPrintPage.jsx')
 // Module 7 - Card Verification (public)
 const CardVerifyPage = lazy(() => import('./pages/CardVerifyPage.jsx'));
 
+// Module 8 - Offline
+const OfflineSyncPage = lazy(() => import('./pages/OfflineSyncPage.jsx'));
+const OfflinePaymentPage = lazy(() => import('./pages/OfflinePaymentPage.jsx'));
+
 const AppFallback = () => (
   <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
     <div className="text-center">
@@ -388,6 +392,12 @@ function AppContent() {
 
           {/* Module 7 - Card Verification (public, no auth) */}
           <Route path="/verify/card/:cardNumber" element={<CardVerifyPage />} />
+
+          {/* Module 8 - Offline Routes */}
+          <Route path="/sync"
+            element={<ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}><OfflineSyncPage /></ProtectedRoute>} />
+          <Route path="/offline-payment"
+            element={<ProtectedRoute allowedRoles={['agent']}><OfflinePaymentPage /></ProtectedRoute>} />
 
           {/* Coming Soon (placeholder pour modules pas encore développés) */}
           <Route

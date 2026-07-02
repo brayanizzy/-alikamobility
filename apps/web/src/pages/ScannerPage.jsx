@@ -10,9 +10,12 @@ import {
   isOnline,
   getMembersFromDB,
   syncMembersToDB,
+  getMemberCardFromDB,
+  syncMemberCardsToDB,
   getScanHistory,
   addScanToHistory,
-  clearScanHistory
+  clearScanHistory,
+  ensureMemberCardsCached,
 } from '@/utils/OfflineService.js';
 
 import { validateQrSecret } from '@/utils/qrUtils.js';
@@ -74,12 +77,15 @@ const ScannerPage = () => {
     };
     loadHistory();
 
-    // Cache members for offline support
+    // Cache data for offline support
     if (isOnline() && currentUser?.organization_id) {
-      let filterStr = `organization_id = "${currentUser.organization_id}"`;
-      // Agent only caches their parking members
-      if (currentUser.role === 'agent' && currentUser.parking_id) {
-        filterStr += ` && parking_id = "${currentUser.parking_id}"`;
+      const orgId = currentUser.organization_id;
+      const parkingId = currentUser.parking_id;
+
+      // Cache members
+      let filterStr = `organization_id = "${orgId}"`;
+      if (currentUser.role === 'agent' && parkingId) {
+        filterStr += ` && parking_id = "${parkingId}"`;
       }
 
       pb.collection('members').getFullList({
@@ -89,6 +95,9 @@ const ScannerPage = () => {
         await cacheData('members_list', res);
         await syncMembersToDB(res);
       }).catch(e => console.error('Failed to cache members', e));
+
+      // Cache active member cards for offline card QR lookup
+      ensureMemberCardsCached(orgId);
     }
   }, []);
 
@@ -215,7 +224,6 @@ const ScannerPage = () => {
         if (!cardNumber) throw new Error("Numéro de carte invalide dans le QR.");
 
         if (isOnline()) {
-          // Look up the card to get the member_id
           const cardRes = await pb.collection('member_cards').getList(1, 1, {
             filter: `card_number = "${cardNumber}" && organization_id = "${currentUser.organization_id}"`,
             $autoCancel: false,
@@ -228,7 +236,20 @@ const ScannerPage = () => {
           if (!foundCard.member_id) throw new Error("Carte non liée à un membre.");
           member = await pb.collection('members').getOne(foundCard.member_id, { $autoCancel: false });
         } else {
-          throw new Error("La vérification par carte nécessite une connexion internet.");
+          // Offline: try cached member cards
+          const cachedCard = await getMemberCardFromDB(cardNumber);
+          if (!cachedCard) throw new Error("Carte non disponible hors ligne. Connectez-vous pour vérifier.");
+          if (cachedCard.status !== 'active') throw new Error(`Carte ${cachedCard.status === 'expired' ? 'expirée' : cachedCard.status}. Paiement refusé.`);
+          if (!cachedCard.member_id) throw new Error("Carte non liée à un membre.");
+
+          // Get member from cache
+          const cachedMembers = await getCachedData('members_list') || [];
+          member = cachedMembers.find(m => m.id === cachedCard.member_id);
+          if (!member) {
+            const dbMembers = await getMembersFromDB(currentUser.organization_id);
+            member = dbMembers.find(m => m.id === cachedCard.member_id);
+          }
+          if (!member) throw new Error("Membre non disponible hors ligne.");
         }
       } else if (decodedText.includes('ALIKA-')) {
         const validation = validateQrSecret(decodedText, currentUser.organization_id);
