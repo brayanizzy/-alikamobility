@@ -168,6 +168,10 @@ function handleCardSecureUrl() {
 
     $verifyUrl = generateSecureVerifyUrl($card);
 
+    if ($verifyUrl === null) {
+        jsonResponse(['error' => 'Configuration serveur incomplète : secret HMAC non configuré.', 'success' => false], 500);
+    }
+
     jsonResponse([
         'success' => true,
         'verify_url' => $verifyUrl,
