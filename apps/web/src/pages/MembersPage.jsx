@@ -1,13 +1,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header.jsx';
+import AppSidebar from '@/components/AppSidebar.jsx';
 import MemberForm from '@/components/MemberForm.jsx';
 import MemberCardPreview from '@/components/MemberCardPreview.jsx';
 import PaginationControls from '@/components/PaginationControls.jsx';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { isOfficeCollector } from '@/utils/roles.js';
-import { Plus, Search, Filter, Edit2, Ban, CheckCircle, Loader2, QrCode, AlertCircle } from 'lucide-react';
+import PersonRoleBadge from '@/components/people/PersonRoleBadge.jsx';
+import { Plus, Search, Filter, Edit2, Ban, CheckCircle, Loader2, QrCode, AlertCircle, UserCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const MembersPage = () => {
@@ -19,6 +21,9 @@ const MembersPage = () => {
   const [loadError, setLoadError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [driverMemberIds, setDriverMemberIds] = useState(new Set());
+  const [ownerMemberIds, setOwnerMemberIds] = useState(new Set());
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -43,7 +48,7 @@ const MembersPage = () => {
         filter += ` && (name ~"${q}" || phone ~"${q}" || moto_number ~"${q}")`;
       }
 
-      const [membersRes, parkingsRes, orgRes] = await Promise.all([
+      const [membersRes, parkingsRes, orgRes, driversRes, ownersRes] = await Promise.all([
         pb.collection('members').getList(p, perPage, {
           filter: filter,
           sort: '-created',
@@ -53,8 +58,20 @@ const MembersPage = () => {
           filter: `organization_id = "${currentUser.organization_id}"`,
           $autoCancel: false
         }),
-        pb.collection('organizations').getOne(currentUser.organization_id, { $autoCancel: false }).catch(() => null)
+        pb.collection('organizations').getOne(currentUser.organization_id, { $autoCancel: false }).catch(() => null),
+        pb.collection('drivers').getList(1, 500, {
+          filter: `organization_id = "${currentUser.organization_id}" && status = "active"`,
+          fields: 'id,member_id',
+          $autoCancel: false
+        }).catch(() => ({ items: [] })),
+        pb.collection('owners').getList(1, 500, {
+          filter: `organization_id = "${currentUser.organization_id}"`,
+          fields: 'id,member_id',
+          $autoCancel: false
+        }).catch(() => ({ items: [] })),
       ]);
+      setDriverMemberIds(new Set((driversRes.items || []).map(d => d.member_id).filter(Boolean)));
+      setOwnerMemberIds(new Set((ownersRes.items || []).map(o => o.member_id).filter(Boolean)));
 
       setMembers(membersRes.items || []);
       setTotalPages(membersRes.totalPages || 1);
@@ -95,15 +112,19 @@ const MembersPage = () => {
     }
   };
 
-  const filteredMembers = statusFilter === 'all'
-    ? members
-    : members.filter(m => m.status === statusFilter);
+  const filteredMembers = members.filter(m => {
+    if (statusFilter !== 'all' && m.status !== statusFilter) return false;
+    if (roleFilter === 'drivers' && !driverMemberIds.has(m.id)) return false;
+    if (roleFilter === 'owners' && !ownerMemberIds.has(m.id)) return false;
+    return true;
+  });
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col pb-16 lg:pb-0">
       <Header />
-      
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-7xl">
+      <div className="flex-1 flex">
+        <AppSidebar />
+        <main className="flex-1 container mx-auto px-4 py-8 max-w-7xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-foreground tracking-tight mb-2">Gestion des Membres</h1>
@@ -143,6 +164,18 @@ const MembersPage = () => {
               <option value="all">Tous les statuts</option>
               <option value="active">Actif</option>
               <option value="suspended">Suspendu</option>
+            </select>
+          </div>
+          <div className="relative w-full sm:w-44">
+            <UserCircle className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <select 
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 rounded-xl bg-input border border-border text-foreground focus:ring-2 focus:ring-primary outline-none transition-all appearance-none"
+            >
+              <option value="all">Tous les rôles</option>
+              <option value="drivers">Chauffeurs</option>
+              <option value="owners">Propriétaires</option>
             </select>
           </div>
         </div>
@@ -190,9 +223,13 @@ const MembersPage = () => {
                             ) : (
                               <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center font-bold text-secondary">{member.name.charAt(0)}</div>
                             )}
-                            <div>
+                              <div>
                               <p className="font-bold text-foreground">{member.name}</p>
                               <p className="text-sm text-muted-foreground">{member.phone}</p>
+                              <div className="flex gap-1 mt-1">
+                                {driverMemberIds.has(member.id) && <PersonRoleBadge role="driver" />}
+                                {ownerMemberIds.has(member.id) && <PersonRoleBadge role="owner" />}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -286,6 +323,7 @@ const MembersPage = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

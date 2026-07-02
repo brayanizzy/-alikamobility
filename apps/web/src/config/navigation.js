@@ -25,8 +25,8 @@ export const NAV_ITEMS = {
       { label: 'Notifications', path: '/notifications', icon: Bell },
     ],
     transport: [
-      { label: 'Chauffeurs', path: '/coming-soon/drivers', icon: UserCircle },
-      { label: 'Propriétaires', path: '/coming-soon/owners', icon: UserCircle },
+      { label: 'Chauffeurs', path: '/drivers', icon: UserCircle },
+      { label: 'Propriétaires', path: '/owners', icon: UserCircle },
       { label: 'Véhicules', path: '/coming-soon/vehicles', icon: Car },
       { label: 'Lignes', path: '/coming-soon/lines', icon: Route },
       { label: 'Affectations', path: '/coming-soon/assignments', icon: ClipboardCheck },
@@ -62,7 +62,7 @@ export const QUICK_ACTIONS = {
     { label: 'Parkings', path: '/parkings', icon: MapPin },
     { label: 'Rapports', path: '/reports', icon: BarChart3 },
     { label: 'Scanner QR', path: '/scanner', icon: ScanLine, agentOnly: true },
-    { label: 'Chauffeurs', path: '/coming-soon/drivers', icon: UserCircle, comingSoon: true },
+    { label: 'Chauffeurs', path: '/drivers', icon: UserCircle },
     { label: 'Véhicules', path: '/coming-soon/vehicles', icon: Car, comingSoon: true },
   ],
   agent: [

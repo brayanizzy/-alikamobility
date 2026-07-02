@@ -6,7 +6,9 @@ import { AuthProvider } from './contexts/AuthContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import OnlineStatusIndicator from './components/OnlineStatusIndicator.jsx';
+import MobileBottomNav from './components/MobileBottomNav.jsx';
 import { AGENT_TYPES } from './utils/roles.js';
+import { useAuth } from './contexts/AuthContext.jsx';
 
 // Pages
 const HomePage = lazy(() => import('./pages/HomePage.jsx'));
@@ -34,6 +36,15 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'));
 const AgentProfilePage = lazy(() => import('./pages/AgentProfilePage.jsx'));
 const ComingSoonPage = lazy(() => import('./pages/ComingSoonPage.jsx'));
 
+// Transport Module
+const DriversPage = lazy(() => import('./pages/DriversPage.jsx'));
+const DriverCreatePage = lazy(() => import('./pages/DriverCreatePage.jsx'));
+const DriverDetailPage = lazy(() => import('./pages/DriverDetailPage.jsx'));
+const DriverEditPage = lazy(() => import('./pages/DriverEditPage.jsx'));
+const OwnersPage = lazy(() => import('./pages/OwnersPage.jsx'));
+const OwnerCreatePage = lazy(() => import('./pages/OwnerCreatePage.jsx'));
+const OwnerDetailPage = lazy(() => import('./pages/OwnerDetailPage.jsx'));
+
 const AppFallback = () => (
   <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
     <div className="text-center">
@@ -43,15 +54,14 @@ const AppFallback = () => (
   </div>
 );
 
-function App() {
+function AppContent() {
+  const { isAuthenticated } = useAuth();
   return (
-    <ErrorBoundary>
-    <AuthProvider>
-      <Router>
-        <ScrollToTop />
-        <OnlineStatusIndicator />
-        <Suspense fallback={<AppFallback />}>
-        <Routes>
+    <>
+      <ScrollToTop />
+      <OnlineStatusIndicator />
+      <Suspense fallback={<AppFallback />}>
+      <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -180,6 +190,64 @@ function App() {
             }
           />
 
+          {/* Transport Routes */}
+          <Route
+            path="/drivers"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super-admin']}>
+                <DriversPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/drivers/new"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super-admin']}>
+                <DriverCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/drivers/:id"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super-admin']}>
+                <DriverDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/drivers/:id/edit"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super-admin']}>
+                <DriverEditPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/owners"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super-admin']}>
+                <OwnersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/owners/new"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super-admin']}>
+                <OwnerCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/owners/:id"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super-admin']}>
+                <OwnerDetailPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Coming Soon (placeholder pour modules pas encore développés) */}
           <Route
             path="/coming-soon/:module"
@@ -194,6 +262,17 @@ function App() {
           <Route path="*" element={<HomePage />} />
         </Routes>
         </Suspense>
+      {isAuthenticated && <MobileBottomNav />}
+    </>
+  );
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+    <AuthProvider>
+      <Router>
+        <AppContent />
       </Router>
     </AuthProvider>
     </ErrorBoundary>
