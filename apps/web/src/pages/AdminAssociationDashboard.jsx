@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import Header from '@/components/Header.jsx';
 import AppSidebar from '@/components/AppSidebar.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import Header from '@/components/Header.jsx';
 import AppSidebar from '@/components/AppSidebar.jsx';
 import PrintableMemberCard from '@/components/cards/PrintableMemberCard.jsx';

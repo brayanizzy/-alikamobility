@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 
 const AuthContext = createContext();
 

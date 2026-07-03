@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Search, X, Loader2, MapPin } from 'lucide-react';
 

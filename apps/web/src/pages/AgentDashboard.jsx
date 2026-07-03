@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import Header from '@/components/Header.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Link } from 'react-router-dom';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import { formatCurrency } from '@/utils/currency.js';
 import { isOfficeCollector } from '@/utils/roles.js';
 import {

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header.jsx';
 import PaginationControls from '@/components/PaginationControls.jsx';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Search, Loader2, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';

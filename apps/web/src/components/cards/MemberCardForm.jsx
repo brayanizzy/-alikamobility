@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import MemberSelector from '@/components/people/MemberSelector.jsx';
 import { toast } from 'sonner';

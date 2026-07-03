@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import Header from '@/components/Header.jsx';
 import AppSidebar from '@/components/AppSidebar.jsx';
 import StatusBadge from '@/components/StatusBadge.jsx';

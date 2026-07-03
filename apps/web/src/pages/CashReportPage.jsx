@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import Header from '@/components/Header.jsx';
 import AppSidebar from '@/components/AppSidebar.jsx';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import StatCard from '@/components/dashboard/StatCard.jsx';
 import ReportDataTable from '@/components/reports/ReportDataTable.jsx';

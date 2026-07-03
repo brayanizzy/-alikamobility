@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header.jsx';
 import PaymentForm from '@/components/PaymentForm.jsx';
 import { Html5Qrcode } from 'html5-qrcode';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import {
   getCachedData,

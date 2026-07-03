@@ -5,7 +5,7 @@ import AppSidebar from '@/components/AppSidebar.jsx';
 import MemberForm from '@/components/MemberForm.jsx';
 import MemberCardPreview from '@/components/MemberCardPreview.jsx';
 import PaginationControls from '@/components/PaginationControls.jsx';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { isOfficeCollector } from '@/utils/roles.js';
 import PersonRoleBadge from '@/components/people/PersonRoleBadge.jsx';

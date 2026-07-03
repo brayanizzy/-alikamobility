@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import Header from '@/components/Header.jsx';
 import StatCard from '@/components/dashboard/StatCard.jsx';
 import QuickActionCard from '@/components/dashboard/QuickActionCard.jsx';

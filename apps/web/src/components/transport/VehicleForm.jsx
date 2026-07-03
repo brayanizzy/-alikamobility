@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import OwnerSelector from '@/components/transport/OwnerSelector.jsx';
 import ParkingSelector from '@/components/transport/ParkingSelector.jsx';
