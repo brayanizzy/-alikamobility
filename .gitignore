@@ -3,3 +3,10 @@ dist/
 .env
 .env.*
 *.local
+*.pem
+*.key
+*.ppk
+*secret*
+sshkey.txt
+list-pikapods.mjs
+test-ssh.mjs

@@ -63,7 +63,7 @@ function triggerMemberCreated($member, $org) {
 
 function handleDailyCollectionCheck() {
     $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
-    $expectedToken = getenv('CRON_SECRET') ?: 'alika-cron-secret-2025';
+    $expectedToken = getenv('CRON_SECRET');
     if (!preg_match('/^Bearer\s+(.+)$/i', $authHeader, $m) || $m[1] !== $expectedToken) {
         jsonResponse(['error' => 'Unauthorized'], 401);
     }

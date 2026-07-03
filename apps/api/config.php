@@ -22,9 +22,9 @@ if (file_exists($envFile)) {
 }
 
 $db_host = getenv('DB_HOST') ?: 'localhost';
-$db_name = getenv('DB_NAME') ?: 'u135947442_alika_mobility';
-$db_user = getenv('DB_USER') ?: 'u135947442_alika_adminn';
-$db_pass = getenv('DB_PASS') ?: 'Alika@2025';
+$db_name = getenv('DB_NAME') ?: '';
+$db_user = getenv('DB_USER') ?: '';
+$db_pass = getenv('DB_PASS') ?: '';
 
 define('UPLOAD_BASE_DIR', __DIR__ . '/../assets/uploads');
 define('PUBLIC_URL_PREFIX', '/api/files');

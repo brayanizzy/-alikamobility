@@ -8,8 +8,8 @@ function getCardHmacSecret() {
     $isDev = in_array($appEnv, ['local', 'dev', 'development']);
 
     if ($isDev) {
-        $fallback = getenv('APP_SECRET') ?: 'alika-mobility-hmac-dev-fallback';
-        return hash('sha256', $fallback, true);
+        $fallback = getenv('APP_SECRET') ?: '';
+        if ($fallback) return hash('sha256', $fallback, true);
     }
 
     return null;

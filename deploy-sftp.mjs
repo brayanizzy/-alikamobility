@@ -10,7 +10,7 @@ async function deploy() {
     if (process.env.SFTP_KEY_PATH) {
       auth.privateKey = readFileSync(process.env.SFTP_KEY_PATH, 'utf8');
     } else {
-      auth.password = process.env.SFTP_PASS || 'Alika@2025';
+      auth.password = process.env.SFTP_PASS;
     }
 
     await sftp.connect({
