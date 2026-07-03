@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header.jsx';
 import PaymentForm from '@/components/PaymentForm.jsx';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Search, Loader2, MapPin } from 'lucide-react';
 

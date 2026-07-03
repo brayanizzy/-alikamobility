@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { ArrowLeft, Loader2, AlertCircle, Building2, MapPin, Phone, User, Mail, Lock, UploadCloud } from 'lucide-react';
 import { toast } from 'sonner';

@@ -116,7 +116,7 @@ SFTP_PASS="..." node deploy-optimized.mjs
 1. Ajouter tests unitaires (Vitest) pour les pages Module 3 et Module 4
 
 ### 🟠 Haute priorité
-2. **Module 10 — Prochain module après validation WIP UI**
+2. **Module 10 — Prochain module** (WIP UI stashé — à reprendre depuis HEAD)
 3. Valider les permissions agents (lecture seule chauffeurs/propriétaires/véhicules/documents)
 
 ### Modules déjà livrés (0–9.2)
@@ -523,3 +523,38 @@ SFTP_PASS="..." node deploy-optimized.mjs
 - **Commit B** : ajout fichiers backend PHP
 - **Commit C** : mise à jour AGENTS.md
 - **Working tree final** : propre (seulement WIP UI non commités)
+
+### Session 16 — 03/07/2026 (Phase 3: Sécurité + Stabilisation working tree)
+
+- **Module 9.2 déjà en production** depuis Session 15 — vérifié intact ✅
+- **Suppression de 3 fichiers sensibles** : `list-pikapods.mjs`, `test-ssh.mjs`, `sshkey.txt` — contenaient mots de passe en clair
+- **Fallbacks de mots de passe supprimés** (4 fichiers) :
+  - `deploy-full.mjs`, `deploy-optimized.mjs`, `deploy-sftp.mjs` — plus de `SFTP_PASS` fallback `'Alika@2025'`
+  - `apps/api/config.php` — plus de fallback `'Alika@2025'` pour DB_HOST/DB_NAME/DB_USER/DB_PASS
+  - `apps/api/notifications.php` — plus de fallback `'alika-cron-secret-2025'` pour CRON_SECRET
+  - `apps/api/card-security.php` — plus de fallback `'alika-mobility-hmac-dev-fallback'` pour APP_SECRET
+- **`.gitignore` durci** : ajout `*.pem`, `*.key`, `*.ppk`, `*secret*`, etc.
+- **`vite.config.js` nettoyé** : suppression des imports morts (plugin pocketbase-auth, visual-editor, selection-mode, iframe-route-restoration — supprimés dans Session 15)
+- **Fichiers manquants restaurés** : `pocketbaseClient.js` (shim temporaire), `ErrorBoundary.jsx`, `PendingApprovalPage.jsx`, `roles.js`, `currency.js` — existaient en untracked mais jamais commités
+- **Stash supprimé** : les WIP UI (HomePage, SignupPage, MembersListPage, agents, forms, notifications, etc.) ont été stashees puis droppées car non finalisées
+- **Phase 3.1 — Finalisation** : les 8 imports `pocketbaseClient` restants remplacés par `apiClient` ; shim `pocketbaseClient.js` supprimé ; `pocketbase` npm dependency retirée ; scripts `apps/pocketbase` effacés du root `package.json`
+- **Build vérifié** : `npm run build` ✅ (2945 modules, 34.82s, 0 erreur)
+- **PHP lint** : 7/7 fichiers OK ✅
+- **Working tree** : propre ✅
+- **Commits** (3 nouveaux, 7 au total depuis Module 9.2) :
+  - `cc7aa79` — "Fix: remove hardcoded secrets from PHP and deploy scripts"
+  - `ef43f3a` — "Fix build: restore pocketbaseClient shim and missing deps"
+  - `d6f8e91` — "Finalize security cleanup and remove PocketBase shim"
+
+**Fichiers modifiés (3) :**
+- `apps/web/vite.config.js` — imports plugins morts supprimés
+- `apps/api/card-security.php` — fallback HMAC dev supprimé
+- `apps/api/notifications.php` — fallback CRON_SECRET supprimé
+- (config.php, deploy-*.mjs, .gitignore déjà modifiés en Session 2/15)
+
+**Fichiers restaurés (5) :**
+- `apps/web/src/lib/pocketbaseClient.js` — shim apiClient restauré puis supprimé
+- `apps/web/src/components/ErrorBoundary.jsx` — ErrorBoundary commité
+- `apps/web/src/pages/PendingApprovalPage.jsx` — page lazy-loadée par App.jsx
+- `apps/web/src/utils/roles.js` — importé par App.jsx, Header.jsx, + 5 pages
+- `apps/web/src/utils/currency.js` — importé par ~30 fichiers

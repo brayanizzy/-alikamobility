@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import Header from '@/components/Header.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Loader2, UserPlus, Edit2, ShieldBan, CheckCircle2, Phone, MapPin, Users } from 'lucide-react';

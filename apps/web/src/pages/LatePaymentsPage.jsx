@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header.jsx';
 import PaymentForm from '@/components/PaymentForm.jsx';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Loader2, MapPin, Phone, Search, X } from 'lucide-react';
 import { toast } from 'sonner';

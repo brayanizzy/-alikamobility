@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Header from '@/components/Header.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/apiClient';
 import { formatCurrency } from '@/utils/currency.js';
 import { AGENT_TYPE_LABELS, isOfficeCollector } from '@/utils/roles.js';
 import {
