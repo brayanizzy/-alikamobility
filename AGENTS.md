@@ -31,12 +31,17 @@ ALIKA MOBILITY/
 │   │   ├── crud.php          # CRUD générique (21 collections V2)
 │   │   ├── router.php        # Routage REST
 │   │   ├── files.php         # Upload/download fichiers
+│   │   ├── email.php         # Mails via Brevo API
+│   │   ├── notifications.php # Notifications + cron
+│   │   ├── card-security.php # HMAC-SHA256 QR sécurisé
+│   │   ├── reports.php       # Rapports avancés
+│   │   ├── migrations.sql    # Index MySQL
+│   │   ├── migrations-v2-transport-core.sql # Tables V2 transport
 │   │   └── .htaccess         # Rewrite → router.php
 │   └── web/                  # Frontend React + Vite
 │       ├── src/
 │       │   ├── lib/
-│       │   │   ├── apiClient.js         # ✅ Client API custom
-│       │   │   └── pocketbaseClient.js  # ✅ Re-export (shim de compat)
+│       │   │   └── apiClient.js         # ✅ Client API custom (import via @/lib/apiClient)
 │       │   ├── contexts/
 │       │   │   └── AuthContext.jsx       # Auth via apiClient
 │       │   ├── components/
@@ -49,14 +54,17 @@ ALIKA MOBILITY/
 │       │   │   │   ├── RecentActivityList.jsx
 │       │   │   │   ├── AlertPanel.jsx
 │       │   │   │   └── DashboardSection.jsx
-│       │   │   ├── ErrorBoundary.jsx     # ✅ Nouveau (anti écran blanc)
+│       │   │   ├── ErrorBoundary.jsx    # Anti écran blanc
 │       │   │   ├── PaginationControls.jsx
-│       │   │   └── ...
-│       │   ├── pages/                   # ~24 pages lazy-loaded
+│       │   │   ├── cards/               # Module 7 — Cartes membres QR
+│       │   │   ├── transport/           # Module 4 — Véhicules
+│       │   │   ├── documents/           # Module 4 — Documents
+│       │   │   └── dashboard/           # Module 2 — KPIs
+│       │   ├── pages/                   # ~60 pages lazy-loaded
 │       │   └── utils/
 │       │       ├── OfflineService.js    # Offline-first IndexedDB
 │       │       └── ...
-│       └── dist/                        # Build de production
+│       └── dist/                        # Build de production (gitignored)
 ├── deploy-sftp.mjs                      # 🚀 Déploiement vers Hostinger
 ├── deploy-optimized.mjs                 # 🚀 Variante optimisée
 ├── deploy-full.mjs                      # 🚀 Frontend + Backend
@@ -108,29 +116,26 @@ SFTP_PASS="..." node deploy-optimized.mjs
 1. Ajouter tests unitaires (Vitest) pour les pages Module 3 et Module 4
 
 ### 🟠 Haute priorité
-2. **Module 5 — Lignes/Affectations** : associer chauffeurs/véhicules aux parkings
-   - Pages liste/création/détail pour lignes
-   - Pages liste/création/détail pour affectations
-   - Lier chauffeurs, véhicules, parkings
+2. **Module 10 — Prochain module après validation WIP UI**
 3. Valider les permissions agents (lecture seule chauffeurs/propriétaires/véhicules/documents)
 
-### 🟡 Moyen terme
-4. Module 6 — Dettes/Pénalités
-5. Module 7 — Paiements avancés (cartes membres QR)
-6. Module 8 — Offline avancé
-7. Module 9 — Rapports PDF/Excel avancés
-8. Remplacer QR hash faible par HMAC-SHA256
-9. Déduplication paiement côté serveur (client_payment_id)
-10. Error tracking + monitoring
-11. CI/CD pipeline (GitHub Actions)
-12. Nettoyer bundle : unused Radix UI, dépendances mortes
-
-### 🟡 Moyen terme
-6. Remplacer QR hash faible par HMAC-SHA256
-7. Déduplication paiement côté serveur (client_payment_id)
-8. Error tracking + monitoring
-9. CI/CD pipeline (GitHub Actions)
-10. Nettoyer bundle : unused Radix UI, dépendances mortes
+### Modules déjà livrés (0–9.2)
+- Module 0.1: Fondations Backend V1 ✅
+- Module 0.2: Pagination réelle + stabilité ✅
+- Module 1: UX/Navigation terrain ✅
+- Module 2: Dashboards professionnels par rôle ✅
+- Module 3: Drivers/Owners People Management ✅
+- Module 4: Véhicules et Documents ✅
+- Module 5: Lignes/Affectations ✅
+- Module 6: Dettes/Pénalités/Reçus ✅
+- Module 7: Cartes membres QR ✅
+- Module 7.1: Sécurisation QR HMAC-SHA256 ✅
+- Module 7.2: HMAC secret dev/prod fallback ✅
+- Module 8: Offline avancé ✅
+- Module 8.1: Fix offline validation (memory leak) ✅
+- Module 9: Rapports PDF/Excel avancés ✅
+- Module 9.1: Validation fonctionnelle rapports ✅
+- Module 9.2: Fix auth session persistence ✅
 
 ---
 
@@ -434,30 +439,28 @@ SFTP_PASS="..." node deploy-optimized.mjs
   - Données : 5 membres (3 A + 2 B), 1 driver, 1 owner, 1 véhicule (Taxi-Moto), 1 ligne, 1 affectation, 1 carte membre avec QR, 3 dettes (2 A + 1 B), 1 pénalité, 4 paiements (3 A cash/mobile/bank + 1 B cash), 1 reçu
   - Mots de passe forts (18 chars aléatoires), hash via `password_hash()`
   - Script nettoyé du serveur après tests
-- **Bugs backend reports.php corrigés** (4 bugs majeurs) :
+- **Bugs backend reports.php corrigés** (5 bugs majeurs) :
   1. `handleReportsOverview()` : `$orgFilter` utilisait `p.organization_id` mais le FROM `payments` n'était pas aliasé → ajout `$orgFilterNoPrefix` (strip `p.`)
   2. `handleReportsDebts()`, `handleReportsMembers()` : param ordering inversé (org_id avant dates) et `$orgSql AND` crashait pour super-admin sans filtre (dangling `AND`) → création `$whereAnd` + aliases par table avec préfixes
   3. `handleReportsTransport()` : `lines` est mot réservé MySQL → backticks `` `lines` ``
   4. `vehicle_type_id` vs `type_id` dans transport handler
+  5. `array_merge($params, [$from, $to])` inversait l'ordre org_id/dates dans overview → ajout `$dateOrgParams`
 - **Tests API en production** :
   - 7 endpoints reports : overview, payments, debts, transport, members, agent-performance, cashier — tous ✅ 200
   - **Org isolation** : Admin B voit uniquement Org B (2 membres, 1 debt, 0 vehicles), pas de fuite Org A ✅
   - **Super-admin** : sans filtre voit toutes les orgs (4 payments, 7 members), avec `?organization_id=` ne voit que l'org ciblée ✅
   - **Office agent** : /reports/cashier répond (0 payments collectés par l'agent) ✅
   - **Permissions** : pas de blocage rôle explicite sur les endpoints (tout user auth peut accéder), mais les données sont filtrées par org_id et collector_id
-- **Build** : 2949 modules, 0 erreurs (inchangé depuis Module 9)
-- **Déploiement** : Hostinger via `deploy-full.mjs` + clé SSH `hostinger_new` ✅ (reports.php + router.php corrigés)
+- **Exports CSV** testés avec données réelles (encaissements, dettes, agents, caisse) : BOM UTF-8, `;` OK, accents OK, montants OK, pas de `[object Object]` ✅
+- **Impression/PDF** vérifiée : ReportPrintLayout avec @media print, navigation masquée, titre/période/footer visibles ✅
+- **Build** : 2949 modules, 0 erreurs ✅
+- **PHP lint** : reports.php + router.php ✅
+- **Commit** : `4e733a2` — "Fix Module 9 reports validation issues" (+154/-18)
+- **Déploiement** : Hostinger via `deploy-full.mjs` + clé SSH `hostinger_new` ✅ (reports.php + router.php)
 
 **Fichiers modifiés (2) :**
-- `apps/api/reports.php` — 4 bugs SQL corrigés
+- `apps/api/reports.php` — 5 bugs SQL corrigés
 - `apps/api/router.php` — revert du mode debug (retour générique 500)
-
-**Comptes de test créés (mots de passe dans l'historique session) :**
-- `test.super@alika-mobility.test` — super-admin
-- `test.admin.a@alika-mobility.test` — admin ORG A
-- `test.field.a@alika-mobility.test` — agent field_collector ORG A
-- `test.office.a@alika-mobility.test` — agent office_collector ORG A
-- `test.admin.b@alika-mobility.test` — admin ORG B (isolation test)
 
 ### Session 13 — 02/07/2026 (Module 7.1 — Sécurisation QR HMAC-SHA256)
 
@@ -502,3 +505,21 @@ SFTP_PASS="..." node deploy-optimized.mjs
 - `apps/web/src/pages/MemberCardDetailPage.jsx` — fetch secure URL
 - `apps/web/src/pages/MemberCardPrintPage.jsx` — fetch secure URL
 - `apps/web/src/pages/CardVerifyPage.jsx` — extraction et passage token
+
+### Session 15 — 03/07/2026 (Phase 1: Déploiement Module 9.2 + Phase 2: Nettoyage Git)
+
+- **Module 9.2 déployé en production** depuis worktree propre (commit `65e8688`)
+  - Frontend-only deploy (script `deploy-frontend-9-2.mjs`) — API backend non touché
+  - Build : 0 erreurs, 25.91s
+  - Production : frontend ✅ 200, sw.js v1.0.3 ✅, API intacte ✅
+- **Nettoyage PocketBase terminé** :
+  - `apps/pocketbase/` retiré du suivi Git (`git rm -r`)
+  - Plugin Vite `vite-plugin-pocketbase-auth.js` supprimé
+  - `pocketbaseClient.js` (shim) supprimé
+  - Tous les imports `@/lib/pocketbaseClient` remplacés par `@/lib/apiClient` (68 fichiers)
+  - `dist/` retiré du suivi Git
+- **Backend PHP tracké** : `auth.php`, `email.php`, `files.php`, `notifications.php`, `.htaccess`, `migrations.sql`, `migrations-v2-transport-core.sql` ajoutés à Git
+- **Commit A** : suppression traces PocketBase
+- **Commit B** : ajout fichiers backend PHP
+- **Commit C** : mise à jour AGENTS.md
+- **Working tree final** : propre (seulement WIP UI non commités)
