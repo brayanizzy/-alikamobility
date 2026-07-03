@@ -2,8 +2,9 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
+import { getAgentType } from '@/utils/roles.js';
 
-const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+const ProtectedRoute = ({ children, allowedRoles = [], allowedAgentTypes = [] }) => {
   const { isAuthenticated, currentUser, isLoading } = useAuth();
   const location = useLocation();
 
@@ -25,6 +26,14 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     if (currentUser?.role === 'admin') return <Navigate to="/dashboard" replace />;
     if (currentUser?.role === 'agent') return <Navigate to="/agent" replace />;
     return <Navigate to="/" replace />;
+  }
+
+  if (
+    currentUser?.role === 'agent' &&
+    allowedAgentTypes.length > 0 &&
+    !allowedAgentTypes.includes(getAgentType(currentUser))
+  ) {
+    return <Navigate to="/agent" replace />;
   }
 
   return children;

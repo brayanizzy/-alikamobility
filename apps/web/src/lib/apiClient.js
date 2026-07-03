@@ -74,6 +74,10 @@ class CollectionClient {
     const res = await fetch(url, options);
     const data = await res.json();
     if (!res.ok) {
+      // Auto-clear session on 401 from any API call
+      if (res.status === 401 && this._authStore.token) {
+        this._authStore.clear();
+      }
       const err = new Error(data.error || data.message || 'Request failed');
       err.status = res.status;
       err.response = data;
@@ -232,6 +236,9 @@ class ApiClient {
     });
     const data = await res.json();
     if (!res.ok) {
+      if (res.status === 401 && this.authStore.token) {
+        this.authStore.clear();
+      }
       const err = new Error(data.error || data.message || 'Request failed');
       err.status = res.status;
       err.response = data;
@@ -265,8 +272,15 @@ class ApiClient {
           return;
         }
       }
-    } catch {}
-    this.authStore.clear();
+      // Only clear on definitive rejection (401 = invalid/expired token)
+      if (res.status === 401) {
+        this.authStore.clear();
+      }
+      // For 5xx, network errors, etc., keep the token; validation will fail
+      // on the next actual API call which will redirect properly.
+    } catch {
+      // Network error — keep token, don't destroy session on transient failure
+    }
   }
 }
 

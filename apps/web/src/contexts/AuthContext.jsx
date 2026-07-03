@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import pb from '@/lib/pocketbaseClient';
 
@@ -7,51 +6,88 @@ const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(pb.authStore.model);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(pb.authStore.isValid);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initial load state
-    setCurrentUser(pb.authStore.model);
-    setIsLoading(false);
+    let cancelled = false;
 
-    // Subscribe to auth state changes
+    const initAuth = async () => {
+      if (!pb.authStore.token) {
+        setIsAuthenticated(false);
+        setIsLoading(false);
+        return;
+      }
+      try {
+        await pb.ready;
+        if (cancelled) return;
+        if (pb.authStore.isValid) {
+          setCurrentUser(pb.authStore.model);
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setCurrentUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    initAuth();
+
     const unsubscribe = pb.authStore.onChange((token, model) => {
-      setCurrentUser(model);
+      if (token && model) {
+        setCurrentUser(model);
+        setIsAuthenticated(true);
+      } else {
+        setCurrentUser(null);
+        setIsAuthenticated(false);
+      }
     });
 
     return () => {
+      cancelled = true;
       unsubscribe();
     };
   }, []);
 
   const login = async (email, password) => {
     try {
-      const authData = await pb.collection('users').authWithPassword(email, password, { $autoCancel: false });
+      const authData = await pb.collection('users').authWithPassword(email, password, {
+        $autoCancel: false,
+      });
       setCurrentUser(authData.record);
+      setIsAuthenticated(true);
       return authData;
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error('Login failed:', error);
       throw error;
     }
   };
 
-  const logout = () => {
-    pb.authStore.clear();
+  const logout = async () => {
+    try {
+      await pb.authStore.clear();
+    } catch (e) {
+      console.warn('Logout error:', e);
+    }
     setCurrentUser(null);
+    setIsAuthenticated(false);
   };
 
   const value = {
     currentUser,
-    isAuthenticated: pb.authStore.isValid,
+    isAuthenticated,
     login,
     logout,
-    isLoading
+    isLoading,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!isLoading && children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+export default AuthProvider;
