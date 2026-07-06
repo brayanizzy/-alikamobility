@@ -6,8 +6,11 @@
     "dev": "npm run dev --prefix apps/web",
     "build": "npm run build --prefix apps/web",
     "test": "npm run test --prefix apps/web",
+    "test:watch": "npm run test:watch --prefix apps/web",
     "lint": "npm run lint --prefix apps/web",
-    "php-lint": "php -l apps/api/config.php && php -l apps/api/auth.php && php -l apps/api/router.php && php -l apps/api/crud.php && php -l apps/api/reports.php && php -l apps/api/notifications.php && php -l apps/api/notification-providers.php && php -l apps/api/notification-templates.php && php -l apps/api/email.php && php -l apps/api/files.php && php -l apps/api/card-security.php"
+    "php-lint": "php scripts/php-lint.php",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "check:all": "npm run check:secrets && npm run php-lint && npm run test && npm run build"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

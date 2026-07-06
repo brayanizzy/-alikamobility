@@ -17,3 +17,12 @@ api-test.php
 run-api-test.mjs
 *-test-local.*
 local-test-*
+
+# Backup files
+backups/
+*.dump.sql
+*-backup-*.sql
+
+# .env.example and .env.template are fine, but not actual credentials
+.env.example
+

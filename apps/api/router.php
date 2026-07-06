@@ -8,6 +8,7 @@ require_once __DIR__ . '/email.php';
 require_once __DIR__ . '/notifications.php';
 require_once __DIR__ . '/card-security.php';
 require_once __DIR__ . '/reports.php';
+require_once __DIR__ . '/health.php';
 
 $allowedOrigin = getAllowedOrigin();
 header('Access-Control-Allow-Origin: ' . $allowedOrigin);
@@ -59,6 +60,7 @@ try {
         'GET /notification-logs' => 'handleNotificationsLogsGet',
         'POST /notification-logs/retry' => 'handleNotificationLogsRetry',
         'POST /notifications/cron-daily-reminders' => 'handleCronDailyReminders',
+        'GET /health' => 'handleHealth',
     ];
 
     $key = "$method $path";

@@ -107,6 +107,9 @@ const OfflinePaymentPage = lazy(() => import('./pages/OfflinePaymentPage.jsx'));
 // Module 9 - Reports
 const CashReportPage = lazy(() => import('./pages/CashReportPage.jsx'));
 
+// Module 12 - System Health
+const SystemHealthPage = lazy(() => import('./pages/SystemHealthPage.jsx'));
+
 const AppFallback = () => (
   <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
     <div className="text-center">
@@ -136,6 +139,14 @@ function AppContent() {
             element={
               <ProtectedRoute allowedRoles={['super-admin']}>
                 <SuperAdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/system/health"
+            element={
+              <ProtectedRoute allowedRoles={['super-admin']}>
+                <SystemHealthPage />
               </ProtectedRoute>
             }
           />

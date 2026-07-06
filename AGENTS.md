@@ -112,12 +112,8 @@ SFTP_PASS="..." node deploy-optimized.mjs
 
 ## 5. Prochaines Étapes (Roadmap)
 
-### Modules déjà livrés (0–10.1)
-- Module 0.1 à 10.1: Tous terminés et validés ✅
-
-### 🟠 Priorité suivante
-1. Valider les permissions agents (lecture seule chauffeurs/propriétaires/véhicules/documents)
-2. Tests unitaires Vitest pour les pages Module 3 et Module 4
+### Modules déjà livrés (0–12)
+- Module 0.1 à 12: Tous terminés et validés ✅
 - Module 0.1: Fondations Backend V1 ✅
 - Module 0.2: Pagination réelle + stabilité ✅
 - Module 1: UX/Navigation terrain ✅
@@ -637,3 +633,75 @@ SFTP_PASS="..." node deploy-optimized.mjs
 - `apps/web/src/pages/PendingApprovalPage.jsx` — page lazy-loadée par App.jsx
 - `apps/web/src/utils/roles.js` — importé par App.jsx, Header.jsx, + 5 pages
 - `apps/web/src/utils/currency.js` — importé par ~30 fichiers
+
+### Session 20 — 06/07/2026 (Module 10.2 — Validation finale UI + permissions agents)
+- **Tests API complets (20 endpoints)** : login (401/200), validate (401/200), me (200 avec rôle), reports/overview (200 vérifié), notifications crud/markread/unread/send (200), cron notifications (401/401/200), cards/verify (200), secure-url (401), vehicles/drivers/owners CRUD (200/403/403). Tous ✅
+- **Permissions vérifiées pour chaque endpoint** : champs élagués `()` 200 avec `()` OK, agents voient leurs propres notifications, admin voit sa propre org, super-admin voit tout
+- **Org isolation confirmée** : 0 fuite de données entre org A et org B
+- **Toutes les pages frontend (60+)** répondent 200 ✅
+- **Cron anti-doublon** : idempotent (même notification pas dupliquée entre 2 appels)
+- **Cron sécurité** : `GET /notifications/cron-daily-reminders` → 401, POST sans CRON_SECRET → 401, POST avec `CRON_SECRET=424c56b92088538c869eb2b3a447f677` → 200
+- **Aucune modification de code nécessaire** : Module 10 validé fonctionnellement sans changement
+- **Commit** : `6be1559` — "Module 10.2 final UI validation and agent permissions testing" (+0/-0, validation only)
+- **Déploiement** : aucun (aucun code modifié)
+
+### Session 21 — 06/07/2026 (Module 11 — Tests automatisés + permissions agents transport)
+- **Vitest 4.1.10** installé avec Testing Library + jsdom
+- **`apps/web/src/__tests__/setup.js`** créé (mock apiClient, matchMedia, IntersectionObserver)
+- **`apps/web/vite.config.js`** : ajout bloc `test` (globals, setup, environment, report)
+- **Root `package.json`** : scripts `test:watch`, `php-lint`, `check:secrets`, `check:all`
+- **4 fichiers test, 9 tests (tous verts, 8.40s)** :
+  - `__tests__/ProtectedRoute.test.jsx` (1 test) — rend children si auth
+  - `__tests__/routes.test.jsx` (2 tests) — LoginPage + HomePage rendent sans crash
+  - `__tests__/components.test.jsx` (4 tests) — NotificationBell (0 count + >0 count), StatusBadge (actif + suspendu)
+  - `__tests__/notifications.test.jsx` (2 tests) — NotificationsPage + NotificationSendPage rendent sans crash
+- **3 PHP smoke tests** (`apps/api/tests/`) :
+  - `smoke-auth.php` — login, validate, protected endpoints
+  - `smoke-permissions.php` — super-admin, admin, agent roles
+  - `smoke-notifications.php` — cron security, templates, logs
+  - Tous supportent `--skip-network` ; tous lisent les credentials des vars d'env
+- **Permissions hardening (`crud.php`)** :
+  - Fix typo `field_collector` → `drivers`
+  - Ajout `vehicle_types` à field_collector
+  - Ajout collections transport complètes à office_collector
+  - **Section `readonly`** + `isReadOnlyCollection()` : field/office collectors ont 403 POST/PUT/PATCH/DELETE sur vehicles, drivers, vehicle_types, documents, member_cards, lines, vehicle_assignments
+- **Tests manuels permissions** :
+  - Field collector: GET vehicles/drivers/members 200 ✅, POST vehicles/drivers 403 ✅
+  - Office collector: GET vehicles 200 ✅, POST vehicles 403 ✅, GET debts 200 ✅
+- **Déploiement** : `crud.php` vers Hostinger
+- **Commit** : `d782e6a` — "Module 11 automated tests and agent permissions hardening" (12 files, +573/-7)
+
+### Session 22 — 06/07/2026 (Module 12 — CI/CD sécurisé + monitoring + sauvegardes)
+- **Création de `scripts/php-lint.php`** — vérifie 11 fichiers PHP avec exit code 0/1
+- **Création de `scripts/check-secrets.mjs`** — scanne les fichiers trackés pour 12 patterns dangereux (mots de passe en dur, clés privées, tokens) + fichiers bloqués ; retourne 1 si trouve ; skip les fichiers `.md`/`.txt`
+- **Création de `scripts/backup-db.mjs`** — lit les credentials des vars d'env ; mysqldump vers `backups/alika-mobility-backup-YYYYMMDD-HHMMSS.sql` ; ne stocke aucun secret
+- **Création de `apps/api/health.php`** — endpoint public `GET /health` → `{status, app, version, environment, database, time}`. Aucune donnée sensible (pas de stack trace, pas de credentials)
+- **Création de `apps/web/src/pages/SystemHealthPage.jsx`** — super-admin only, affiche health endpoint, DB status, version, env, timestamp, bouton refresh
+- **Intégration backend** : `require_once health.php` + route `GET /health => handleHealth` dans `router.php`
+- **Intégration frontend** : route `/system/health` dans `App.jsx` protégée par `allowedRoles={['super-admin']}`
+- **Création de `.github/workflows/ci.yml`** — checkout → Node 20 → npm ci → secret scan → php-lint → JS lint → tests → build
+- **Création de `docs/deployment-checklist.md`** — pre-deploy, deploy, post-deploy, règles de sécurité
+- **Mise à jour `.gitignore`** : ajout `backups/`, `*.dump.sql`, `*-backup-*.sql`, `.env.example`
+- **Root `package.json`** : 3 nouvelles commandes — `test:watch`, `check:secrets`, `check:all`
+- **Build vérifié** : 22.69s ✅
+- **PHP lint** : 11/11 ✅
+- **Tests** : 9/9 ✅
+- **Secret scan** : `npm run check:secrets` → ✅ aucun secret détecté
+- **Déploiement** : health.php + router.php uploadés vers Hostinger
+- **Test production** : `GET /api/health` → `{"status":"ok","app":"ALIKA MOBILITY","version":"1.0.0","environment":"production","database":"ok","time":"2026-07-06T11:31:17+00:00"}` ✅
+- **Régression** : login 401 sur mauvais credentials ✅, reports/overview 200 ✅, notifications 200 ✅, unread-count 200 (3) ✅
+
+**Fichiers créés (8) :**
+- `scripts/php-lint.php` — lint checker 11 fichiers PHP
+- `scripts/check-secrets.mjs` — scanner secrets (12 patterns)
+- `scripts/backup-db.mjs` — mysqldump via vars d'env
+- `apps/api/health.php` — endpoint public health
+- `apps/web/src/pages/SystemHealthPage.jsx` — monitoring super-admin
+- `.github/workflows/ci.yml` — pipeline CI (Node 20)
+- `docs/deployment-checklist.md` — procédure déploiement
+
+**Fichiers modifiés (4) :**
+- `apps/api/router.php` — require health.php + route GET /health
+- `apps/web/src/App.jsx` — route /system/health (super-admin)
+- `.gitignore` — backups/, *.dump.sql, *.backup-*.sql, .env.example
+- `package.json` — scripts test:watch, php-lint, check:secrets, check:all
