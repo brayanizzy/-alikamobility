@@ -31,18 +31,19 @@ async function deploy() {
     console.log(`\n--- Frontend: ${localDist} -> ${remoteRoot} ---`);
     await sftp.uploadDir(localDist, remoteRoot);
 
-    // 2. Backend API vers /api
+    // 2. Backend API vers /api (exclure .env.local pour préserver le fichier serveur)
     console.log(`\n--- Backend: ${localApi} -> ${remoteRoot}/api ---`);
     const apiRemote = `${remoteRoot}/api`;
     const exists = await sftp.exists(apiRemote);
     if (!exists) {
       await sftp.mkdir(apiRemote, true);
     }
-    await sftp.uploadDir(localApi, apiRemote);
-
-    // Ne pas écraser le .env.local du serveur (ne pas uploader le fichier local vide)
-    // Note: uploadDir n'écrase pas les fichiers distants qui n'existent pas localement
-    // Le .env.local du serveur est préservé automatiquement
+    await sftp.uploadDir(localApi, apiRemote, {
+      filter: (path, isDir) => {
+        if (isDir) return true;
+        return !path.endsWith('.env.local') && !path.endsWith('.env');
+      },
+    });
 
     console.log('\nDéploiement complet terminé avec succès!');
     console.log('Frontend: https://alikamobility.alika-konnect.com');

@@ -751,3 +751,24 @@ SFTP_PASS="..." node deploy-optimized.mjs
 
 **Fichiers modifiés hors Git (serveur uniquement, non commités) :**
 - `apps/api/.env.local` (Hostinger) — restauré avec DB credentials + nouveau `CARD_QR_HMAC_SECRET`
+
+### Session 24 — 06/07/2026 (REV-01 — Accès super-admin + login utilisable)
+
+- **Vérification initiale** : production healthy (database: ok), frontend + login 200 ✅
+- **Audit comptes existants** : `mukunabrayan44@gmail.com` (double u) existe comme super-admin active, org_id NULL. `muuukunabrayan44@gmail.com` (triple u) n'existe pas — confirmé comme typo par l'utilisateur.
+- **Reset mot de passe super-admin** : génération d'un mot de passe fort (20 chars) via script PHP temporaire uploadé, exécuté et supprimé du serveur.
+- **Création de 2 associations de test** : `TEST-REV-ORG-A` (ID: IkWFcjMMoFrvFw=) et `TEST-REV-ORG-B` (ID: Vkhxwt8HMBVKdQI), chacune avec un admin (`rev.admin.a@alika-mobility.test` / `rev.admin.b@alika-mobility.test`).
+- **Tests API login** : super-admin 200 (token, role, org=null) ✅, validate 200 ✅, me 200 ✅, logout 200 ✅, admin A 200 (org A) ✅, admin B 200 (org B) ✅.
+- **Bug fix SuperAdminDashboard** : (1) `setOrganizations(orgs)` manquant → la liste des orgs restait vide ; (2) mot de passe hardcoded `'ChangeMe123!'` remplacé par `generateTempPassword()` (crypto.getRandomValues, 18 chars).
+- **Bug fix deploy-full.mjs** : cause racine de la perte répétée de `.env.local` identifiée — le fichier local `apps/api/.env.local` (3 lignes, Brevo only) était uploadé à chaque déploiement, écrasant le fichier serveur complet (11 lignes). Ajout d'un `filter` dans `uploadDir` pour exclure `.env.local` et `.env` des uploads API.
+- **Vérification organization_id=null** : les routes ProtectedRoute protègent correctement par rôle. Le super-admin ne peut pas accéder à `/members`, `/dashboard`, `/reports` (réservés admin/agent). Les pages accessibles au super-admin (vehicles, documents, parkings, notifications) utilisent `currentUser?.organization_id` avec optional chaining — pas de crash, listes vides (acceptable pour REV-01).
+- **Email test** : échec (404) car le système de notification résout le destinataire via `organization_id = ?` — avec org_id NULL, la requête SQL ne matche rien. Limitation à traiter en REV-02. `NOTIFICATION_DRY_RUN=true` non modifié.
+- **Build** : 2951 modules, 0 erreur ✅
+- **Tests** : 9/9 ✅
+- **Déploiement** : Hostinger via deploy-full.mjs (avec filtre .env.local) ✅
+- **Post-déploiement** : health ok ✅, .env.local préservé ✅, rate limiting actif (429 après tests répétés — comportement attendu)
+- **Commit** : `REV-01 create valid super-admin access and test organizations`
+
+**Fichiers modifiés (2) :**
+- `apps/web/src/pages/SuperAdminDashboard.jsx` — fix `setOrganizations()` + `generateTempPassword()`
+- `deploy-full.mjs` — filtre `.env.local` dans `uploadDir` API (cause racine perte .env.local)

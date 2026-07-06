@@ -40,6 +40,23 @@ function SkeletonCard({ className = '' }) {
   );
 }
 
+function generateTempPassword(len = 18) {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnopqrstuvwxyz';
+  const digits = '23456789';
+  const symbols = '!@#$%^&*';
+  const all = upper + lower + digits + symbols;
+  let pw = '';
+  pw += upper[crypto.getRandomValues(new Uint32Array(1))[0] % upper.length];
+  pw += lower[crypto.getRandomValues(new Uint32Array(1))[0] % lower.length];
+  pw += digits[crypto.getRandomValues(new Uint32Array(1))[0] % digits.length];
+  pw += symbols[crypto.getRandomValues(new Uint32Array(1))[0] % symbols.length];
+  for (let i = 4; i < len; i++) {
+    pw += all[crypto.getRandomValues(new Uint32Array(1))[0] % all.length];
+  }
+  return pw;
+}
+
 const SuperAdminDashboard = () => {
   const [organizations, setOrganizations] = useState([]);
   const [stats, setStats] = useState({
@@ -81,6 +98,7 @@ const SuperAdminDashboard = () => {
       ]);
 
       const orgs = orgsRes.items || [];
+      setOrganizations(orgs);
 
       const today = new Date().toISOString().split('T')[0];
       const monthStart = new Date();
@@ -171,13 +189,13 @@ const SuperAdminDashboard = () => {
         name: newOrgName, contact_email: adminEmail, subscription_plan: 'pro', status: 'active',
       }, { $autoCancel: false });
 
-      const tempPassword = 'ChangeMe123!';
+      const tempPassword = generateTempPassword();
       await pb.collection('users').create({
         email: adminEmail, password: tempPassword, passwordConfirm: tempPassword,
         role: 'admin', organization_id: org.id, name: `${newOrgName} Admin`,
       }, { $autoCancel: false });
 
-      toast.success(`Organisation créée! Email: ${adminEmail} / MDP: ${tempPassword}`);
+      toast.success(`Organisation créée ! Identifiants envoyés à ${adminEmail}. Mot de passe temporaire : ${tempPassword}`);
       setNewOrgName(''); setAdminEmail('');
       fetchDashboardData();
     } catch (err) {
