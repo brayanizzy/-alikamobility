@@ -177,7 +177,7 @@ function handleCronDailyReminders() {
 
         // 1. Debt reminders (debts pending > 30 days)
         $stmt = $db->prepare(
-            "SELECT d.id, d.member_id, d.amount_original, d.amount_remaining, d.currency, m.name as member_name, m.phone, m.email
+            "SELECT d.id, d.member_id, d.amount_original, d.amount_remaining, d.currency, m.name as member_name, m.phone, '' as email
              FROM debts d JOIN members m ON d.member_id = m.id
              WHERE d.organization_id = ? AND d.status IN ('pending', 'partially_paid') AND d.created < DATE_SUB(NOW(), INTERVAL 30 DAY)"
         );
@@ -208,69 +208,71 @@ function handleCronDailyReminders() {
             $results[] = $result;
         }
 
-        // 2. Documents expiring in 7 days
-        $stmt = $db->prepare(
-            "SELECT d.id, d.driver_id, d.type, d.expiry_date, dr.name as driver_name, dr.phone, dr.email
-             FROM documents d JOIN drivers dr ON d.driver_id = dr.id
-             WHERE d.organization_id = ? AND d.expiry_date IS NOT NULL AND d.expiry_date = ?"
-        );
-        $stmt->execute([$orgId, $in7Days]);
-        $expiringDocs = $stmt->fetchAll();
-
-        foreach ($expiringDocs as $doc) {
-            $idempotencyKey = 'doc_expiry_7d:' . $doc['id'] . ':' . $today;
-            if (hasBeenSentToday($db, $idempotencyKey)) continue;
-
-            $result = sendMultiChannelNotification($db, $orgId, null, [
-                'template_code' => 'document_expiry',
-                'channel' => 'email',
-                'recipient_type' => 'driver',
-                'recipient_id' => $doc['driver_id'],
-                'recipient_name' => $doc['driver_name'],
-                'recipient_contact' => $doc['email'],
-                'variables' => [
-                    'driver_name' => $doc['driver_name'],
-                    'document_type' => $doc['type'],
-                    'expiry_date' => $doc['expiry_date'],
-                    'organization_name' => $orgName,
-                ],
-                'idempotency_key' => $idempotencyKey,
-                'is_dry_run' => $dryRun,
-            ]);
-            $results[] = $result;
-        }
-
-        // 3. Documents already expired
-        $stmt = $db->prepare(
-            "SELECT d.id, d.driver_id, d.type, d.expiry_date, dr.name as driver_name, dr.phone, dr.email
-             FROM documents d JOIN drivers dr ON d.driver_id = dr.id
-             WHERE d.organization_id = ? AND d.expiry_date IS NOT NULL AND d.expiry_date < ? AND d.status != 'expired'"
-        );
-        $stmt->execute([$orgId, $today]);
-        $expiredDocs = $stmt->fetchAll();
-
-        foreach ($expiredDocs as $doc) {
-            $idempotencyKey = 'doc_expired:' . $doc['id'] . ':' . $today;
-            if (hasBeenSentToday($db, $idempotencyKey)) continue;
-
-            $result = sendMultiChannelNotification($db, $orgId, null, [
-                'template_code' => 'document_expiry',
-                'channel' => 'email',
-                'recipient_type' => 'driver',
-                'recipient_id' => $doc['driver_id'],
-                'recipient_name' => $doc['driver_name'],
-                'recipient_contact' => $doc['email'],
-                'variables' => [
-                    'driver_name' => $doc['driver_name'],
-                    'document_type' => $doc['type'],
-                    'expiry_date' => $doc['expiry_date'],
-                    'organization_name' => $orgName,
-                ],
-                'idempotency_key' => $idempotencyKey,
-                'is_dry_run' => $dryRun,
-            ]);
-            $results[] = $result;
-        }
+        // 2. Documents expiring in 7 days (related_type = 'driver')
+          $stmt = $db->prepare(
+              "SELECT d.id, d.related_id as driver_id, d.document_type as type, d.expiry_date, m.name as driver_name, m.phone, '' as email
+               FROM documents d LEFT JOIN drivers dr ON d.related_type = 'driver' AND d.related_id = dr.id
+               LEFT JOIN members m ON dr.member_id = m.id
+               WHERE d.organization_id = ? AND d.related_type = 'driver' AND d.expiry_date IS NOT NULL AND d.expiry_date = ?"
+          );
+          $stmt->execute([$orgId, $in7Days]);
+          $expiringDocs = $stmt->fetchAll();
+  
+          foreach ($expiringDocs as $doc) {
+              $idempotencyKey = 'doc_expiry_7d:' . $doc['id'] . ':' . $today;
+              if (hasBeenSentToday($db, $idempotencyKey)) continue;
+  
+              $result = sendMultiChannelNotification($db, $orgId, null, [
+                  'template_code' => 'document_expiry',
+                  'channel' => 'email',
+                  'recipient_type' => 'driver',
+                  'recipient_id' => $doc['driver_id'],
+                  'recipient_name' => $doc['driver_name'] ?: 'Chauffeur',
+                  'recipient_contact' => $doc['email'],
+                  'variables' => [
+                      'driver_name' => $doc['driver_name'] ?: 'Chauffeur',
+                      'document_type' => $doc['type'],
+                      'expiry_date' => $doc['expiry_date'],
+                      'organization_name' => $orgName,
+                  ],
+                  'idempotency_key' => $idempotencyKey,
+                  'is_dry_run' => $dryRun,
+              ]);
+              $results[] = $result;
+          }
+  
+          // 3. Documents already expired (related_type = 'driver')
+          $stmt = $db->prepare(
+              "SELECT d.id, d.related_id as driver_id, d.document_type as type, d.expiry_date, m.name as driver_name, m.phone, '' as email
+               FROM documents d LEFT JOIN drivers dr ON d.related_type = 'driver' AND d.related_id = dr.id
+               LEFT JOIN members m ON dr.member_id = m.id
+               WHERE d.organization_id = ? AND d.related_type = 'driver' AND d.expiry_date IS NOT NULL AND d.expiry_date < ? AND d.status != 'expired'"
+          );
+          $stmt->execute([$orgId, $today]);
+          $expiredDocs = $stmt->fetchAll();
+  
+          foreach ($expiredDocs as $doc) {
+              $idempotencyKey = 'doc_expired:' . $doc['id'] . ':' . $today;
+              if (hasBeenSentToday($db, $idempotencyKey)) continue;
+  
+              $result = sendMultiChannelNotification($db, $orgId, null, [
+                  'template_code' => 'document_expiry',
+                  'channel' => 'email',
+                  'recipient_type' => 'driver',
+                  'recipient_id' => $doc['driver_id'],
+                  'recipient_name' => $doc['driver_name'] ?: 'Chauffeur',
+                  'recipient_contact' => $doc['email'],
+                  'variables' => [
+                      'driver_name' => $doc['driver_name'] ?: 'Chauffeur',
+                      'document_type' => $doc['type'],
+                      'expiry_date' => $doc['expiry_date'],
+                      'organization_name' => $orgName,
+                  ],
+                  'idempotency_key' => $idempotencyKey,
+                  'is_dry_run' => $dryRun,
+              ]);
+              $results[] = $result;
+          }
     }
 
     jsonResponse(['results' => $results, 'count' => count($results), 'dry_run' => $dryRun]);
@@ -682,7 +684,7 @@ function handleNotificationsActionSend() {
             if (!$debtId) { jsonResponse(['error' => 'debt_id requis'], 400); }
 
             $stmt = $db->prepare(
-                "SELECT d.*, m.name as member_name, m.email, m.phone
+                "SELECT d.*, m.name as member_name, '' as email, m.phone
                  FROM debts d JOIN members m ON d.member_id = m.id
                  WHERE d.id = ? AND d.organization_id = ?"
             );
@@ -716,7 +718,7 @@ function handleNotificationsActionSend() {
             if (!$paymentId) { jsonResponse(['error' => 'payment_id requis'], 400); }
 
             $stmt = $db->prepare(
-                "SELECT p.*, m.name as member_name, m.email
+                "SELECT p.*, m.name as member_name, '' as email
                  FROM payments p JOIN members m ON p.member_id = m.id
                  WHERE p.id = ? AND p.organization_id = ?"
             );
@@ -754,7 +756,7 @@ function handleNotificationsActionSend() {
             if (!$penaltyId) { jsonResponse(['error' => 'penalty_id requis'], 400); }
 
             $stmt = $db->prepare(
-                "SELECT p.*, m.name as member_name, m.email
+                "SELECT p.*, m.name as member_name, '' as email
                  FROM penalties p JOIN members m ON p.member_id = m.id
                  WHERE p.id = ? AND p.organization_id = ?"
             );
