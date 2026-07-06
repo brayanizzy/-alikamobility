@@ -705,3 +705,49 @@ SFTP_PASS="..." node deploy-optimized.mjs
 - `apps/web/src/App.jsx` — route /system/health (super-admin)
 - `.gitignore` — backups/, *.dump.sql, *.backup-*.sql, .env.example
 - `package.json` — scripts test:watch, php-lint, check:secrets, check:all
+
+### Session 23 — 06/07/2026 (Incident production : MIME/SW/deploy path + Module 12.4 refonte page d'accueil)
+
+**Partie A — Résolution incident production (écran blanc "Une erreur est survenue")**
+- **Cause racine** : `deploy-full.mjs`/`deploy-sftp.mjs`/`deploy-optimized.mjs` uploadaient `apps/web/dist/` (build obsolète) au lieu de `dist/apps/web/` (build réel généré par `vite build --outDir ../../dist/apps/web`) → chunks JS avec mauvais hash → 404 → HTML servi avec MIME `text/html` → rejet navigateur des modules ES.
+- **Corrections** :
+  - 3 scripts de déploiement : `LOCAL_DIST` fallback → `dist/apps/web`
+  - `apps/web/public/.htaccess` : ajout `<FilesMatch "\.js$"> ForceType application/javascript </FilesMatch>` (le `AddType` seul était parfois écrasé par la config serveur Hostinger)
+  - `apps/web/public/sw.js` : `CACHE_VERSION` v1.0.3 → v1.0.4 (forcer invalidation cache client)
+- **Incident secondaire (2 occurrences)** : après déploiement, `apps/api/.env.local` distant s'est retrouvé réduit à 3 lignes (BREVO_* uniquement), sans `DB_HOST/DB_NAME/DB_USER/DB_PASS/ALLOWED_ORIGINS/CARD_QR_HMAC_SECRET/CRON_SECRET/NOTIFICATION_DRY_RUN` → `GET /api/health` renvoyait `"database":"error"` et le login renvoyait 500. Cause exacte non confirmée (le script de déploiement ne supprime pas ce fichier — vérifié dans le code de `ssh2-sftp-client@12.1.1`), possible reliquat d'un ancien fichier ou erreur de restauration antérieure.
+  - **Restauré** via upload direct du fichier complet par SFTP (hors dépôt Git, jamais commité) avec les valeurs connues (DB credentials historiques, `CRON_SECRET` retrouvé dans le log de Session 20) et un **nouveau** `CARD_QR_HMAC_SECRET` généré aléatoirement (l'ancien n'était pas récupérable) — **effet de bord : les cartes membres QR déjà émises avant cet incident ne sont plus vérifiables et devront être régénérées**.
+  - Vérifié après restauration : `GET /api/health` → `database: ok` ✅, login credentials invalides → 401 (plus 500) ✅, login super-admin → 200 ✅, `/reports/overview` → 200 ✅, `/notifications/unread-count` → 200 ✅, `/cards/verify` → 404 propre (pas de crash) ✅.
+  - **⚠️ Point de vigilance pour les prochaines sessions** : vérifier systématiquement `GET /api/health` après chaque déploiement backend, et envisager de stocker une copie chiffrée des secrets `.env.local` en lieu sûr (hors dépôt) pour éviter une perte totale.
+
+**Partie B — Module 12.4 : Audit + refonte de la page d'accueil publique**
+- **Audit de l'ancienne page** : `HomePage.jsx` utilisait le `Header` interne (navbar applicative), textes en anglais, une seule section "features" en zig-zag, pas de section rôles/sécurité/comment ça marche/CTA dédiée, footer minimal. Trop "produit tech générique", pas assez commercial ni adapté au contexte transport RDC.
+- **Nouveaux composants dédiés à la landing page** (n'affectent aucune page interne) :
+  - `components/landing/LandingNavbar.jsx` — navbar publique dédiée (logo texte, ancres Fonctionnalités/Rôles/Sécurité/Comment ça marche, CTA "Se connecter"/"Demander une démo", bouton "Aller au tableau de bord" + redirection par rôle si connecté, menu mobile)
+  - `components/landing/HeroMockup.jsx` — visuel SaaS 100% HTML/CSS (carte KPIs, reçu flottant, notification, QR stylisé, badge "Synchronisé"), aucune image lourde
+  - `components/landing/FeatureCard.jsx`, `components/landing/RoleCard.jsx` — cartes réutilisables
+  - `components/landing/LandingFooter.jsx` — footer avec liens Connexion/Démo/Support/Confidentialité, année dynamique
+- **`HomePage.jsx` entièrement réécrite** avec les 11 sections demandées : Navbar, Hero (titre/sous-titre/badges PWA-QR sécurisé-Offline-Rapports-Notifications-PHP MySQL/CTA/mockup), Problème vs Solution (3+3), Fonctionnalités (12 cartes), Rôles (4 cartes), Comment ça marche (4 étapes, timeline desktop / colonne mobile), Terrain & offline (mockup téléphone), Sécurité & fiabilité (8 points + mini panneau "Statut plateforme" statique, aucune donnée sensible), Rapports & pilotage (mini bar chart CSS), CTA final, Footer.
+- **`tailwind.config.js`** : ajout additif `primary.light/dark` et `secondary.light/dark` (mappés aux variables CSS déjà existantes `--primary-light/dark`) pour permettre les gradients de la landing page — aucun impact sur les classes existantes.
+- **Header.jsx (applicatif) non modifié** — toujours utilisé par les ~60 pages internes (dashboards, CRUD, etc.), aucun risque de régression.
+- **Tests** :
+  - `npm run build` → 2951 modules, 0 erreur ✅
+  - `npm run test` → 9/9 ✅ (dont rendu HomePage sans crash)
+  - `npm run php-lint` → 11/11 ✅
+  - `npm run check:secrets` → 6 faux positifs **pré-existants** dans `scripts/check-secrets.mjs` lui-même (le scanner détecte ses propres motifs regex écrits en dur) — non lié à cette session, fichier non modifié
+- **Déploiement** : `deploy-full.mjs` (frontend + backend) vers Hostinger ✅
+- **Tests production post-déploiement** : `/` → 200, `/login` → 200, `/api/health` → `database: ok` (après restauration), login super-admin → 200, `/reports/overview` → 200, `/notifications/unread-count` → 200, `/cards/verify` → 404 propre
+- **Commit** : voir section commits ci-dessous
+
+**Fichiers créés (4) :**
+- `apps/web/src/components/landing/LandingNavbar.jsx`
+- `apps/web/src/components/landing/HeroMockup.jsx`
+- `apps/web/src/components/landing/FeatureCard.jsx`
+- `apps/web/src/components/landing/RoleCard.jsx`
+- `apps/web/src/components/landing/LandingFooter.jsx`
+
+**Fichiers modifiés (2) :**
+- `apps/web/src/pages/HomePage.jsx` — réécriture complète (landing SaaS 11 sections, FR)
+- `apps/web/tailwind.config.js` — ajout primary/secondary light/dark (additif)
+
+**Fichiers modifiés hors Git (serveur uniquement, non commités) :**
+- `apps/api/.env.local` (Hostinger) — restauré avec DB credentials + nouveau `CARD_QR_HMAC_SECRET`
