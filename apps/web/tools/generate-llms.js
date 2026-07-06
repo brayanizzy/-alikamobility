@@ -163,8 +163,8 @@ function main() {
 	}
 
 	if (pages.length === 0) {
-		console.error('❌ No pages with Helmet components found!');
-		process.exit(1);
+		// No Helmet components — this is fine (react-helmet was removed)
+		process.exit(0);
 	}
 
 

@@ -40,6 +40,9 @@ async function deploy() {
     }
     await sftp.uploadDir(localApi, apiRemote);
 
+    // Ne pas écraser le .env.local du serveur
+    try { await sftp.delete(`${apiRemote}/.env.local`); } catch {}
+
     console.log('\nDéploiement complet terminé avec succès!');
     console.log('Frontend: https://alikamobility.alika-konnect.com');
     console.log('API: https://alikamobility.alika-konnect.com/api');

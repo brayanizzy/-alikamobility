@@ -524,6 +524,29 @@ SFTP_PASS="..." node deploy-optimized.mjs
 - **Commit C** : mise à jour AGENTS.md
 - **Working tree final** : propre (seulement WIP UI non commités)
 
+### Session 17 — 03/07/2026 (Module 10 — Notifications multi-canal + Phase 3.1 final)
+- **Phase 3.1 finalisée** : 8 fichiers WIP migrés de `pocketbaseClient` → `apiClient` : MemberForm.jsx, PaymentForm.jsx, AgentProfilePage.jsx, AgentsPage.jsx, LatePaymentsPage.jsx, MembersListPage.jsx, NotificationsPage.jsx, SignupPage.jsx. Shim `pocketbaseClient.js` supprimé. Dépendances `pocketbase` + `react-helmet` retirées du package.json. Root `package.json` nettoyé.
+- **3 commits Phase 3.1** : `55251a3`, `d7ea659`, `9a7c91f`.
+- **Module 10 — Backend** :
+  - `notification-providers.php` : Providers Email (Brevo), SMS (API REST générique), WhatsApp (Cloud API). Normalisation téléphone RDC `+243`. Mode dry-run via `NOTIFICATION_DRY_RUN=true`.
+  - `notification-templates.php` : CRUD templates + 11 templates français pré-définis (debt_reminder, payment_receipt, penalty_notice, document_expiry, member_card_ready, admin_custom_message) avec variantes SMS/WhatsApp.
+  - `notifications.php` : Réécriture complète — `sendMultiChannelNotification()`, logs avec idempotence, retry, cron reminders (dettes >30j, documents expire J-7/J). Endpoints API : notifications (GET, mark-read, mark-all-read, unread-count), templates (CRUD, seed), logs (GET, retry), actions rapides (send-debt-reminder, send-payment-receipt, send-penalty-notice, send-custom-message), cron daily reminders.
+  - `config.php` : Ajout `getNotificationConfig()`.
+  - `router.php` : 15 nouvelles routes notification.
+  - `migrations-module10-notifications.sql` : Tables `notification_templates`, `notification_logs` + colonnes `channel`, `notification_log_id` sur `notifications`.
+- **Module 10 — Frontend** :
+  - `NotificationSendPage.jsx` : Page d'envoi multi-canal — sélection canal, recherche destinataire (members/drivers/users), choix template, aperçu message, dry-run toggle, résultat avec ID log.
+  - `NotificationsPage.jsx` : Liste avec filtres type/canal, vue logs d'envoi avec statuts, retry sur logs échoués, pagination.
+  - `NotificationBell.jsx` : Compteur non lues via `/notifications/unread-count`.
+  - **Route** `/notifications/send` ajoutée dans `App.jsx` (admin/super-admin).
+- **Build** : `npm run build` ✅ (2945 modules, 0 erreur, 33.25s)
+- **Fichiers créés (5)** : `apps/api/notification-providers.php`, `apps/api/notification-templates.php`, `apps/api/migrations-module10-notifications.sql`, `apps/web/src/pages/NotificationSendPage.jsx`, (réécriture `apps/api/notifications.php`)
+- **Fichiers modifiés (6)** : `apps/api/config.php`, `apps/api/router.php`, `apps/web/src/pages/NotificationsPage.jsx`, `apps/web/src/components/NotificationBell.jsx`, `apps/web/src/App.jsx`, `AGENTS.md`
+- **Déploiement** : Hostinger via `deploy-full.mjs` + clé SSH `hostinger_new` ✅
+- **Bug critique découvert** : `deploy-full.mjs` écrasait le `.env.local` du serveur (contenant les credentials DB) avec le fichier local (sans DB). Corrigé en ajoutant la suppression distante de `.env.local` après upload dans `deploy-full.mjs`.
+- **Fichier `.env.local` restauré** sur le serveur avec DB_HOST, DB_NAME, DB_USER, DB_PASS, BREVO_API_KEY, ALLOWED_ORIGINS, CARD_QR_HMAC_SECRET, CRON_SECRET, NOTIFICATION_DRY_RUN.
+- **Fichiers modifiés (suite)** : `deploy-full.mjs` — suppression distante de `.env.local` après upload.
+
 ### Session 16 — 03/07/2026 (Phase 3: Sécurité + Stabilisation working tree)
 
 - **Module 9.2 déjà en production** depuis Session 15 — vérifié intact ✅

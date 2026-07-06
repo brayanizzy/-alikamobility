@@ -34,10 +34,16 @@ const NotificationBell = () => {
       });
       const items = records.items || [];
 
-      const unreadRes = await pb.collection('notifications').getList(1, 1, {
-        filter: 'is_read = false', $autoCancel: false,
-      });
-      const newCount = unreadRes.totalItems || 0;
+      let newCount = 0;
+      try {
+        const countRes = await pb.request('/notifications/unread-count');
+        newCount = countRes.count || 0;
+      } catch {
+        const unreadRes = await pb.collection('notifications').getList(1, 1, {
+          filter: 'is_read = false', $autoCancel: false,
+        });
+        newCount = unreadRes.totalItems || 0;
+      }
 
       // Toast on new unread notifications
       if (prevCountRef.current > 0 && newCount > prevCountRef.current && items.length > 0) {

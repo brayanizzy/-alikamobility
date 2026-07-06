@@ -11,3 +11,9 @@ sshkey.txt
 list-pikapods.mjs
 test-ssh.mjs
 null
+
+# Test files locaux
+api-test.php
+run-api-test.mjs
+*-test-local.*
+local-test-*

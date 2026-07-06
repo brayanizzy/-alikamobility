@@ -124,3 +124,7 @@ function getFileUrl($collection, $recordId, $filename) {
     if (!$filename) return null;
     return PUBLIC_URL_PREFIX . '/' . $collection . '/' . $recordId . '/' . $filename;
 }
+
+function getNotificationConfig($key, $default = null) {
+    return getenv($key) ?: $default;
+}

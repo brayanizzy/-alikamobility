@@ -33,6 +33,7 @@ const PaymentHistoryPage = lazy(() => import('./pages/PaymentHistoryPage.jsx'));
 const MembersListPage = lazy(() => import('./pages/MembersListPage.jsx'));
 const LatePaymentsPage = lazy(() => import('./pages/LatePaymentsPage.jsx'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'));
+const NotificationSendPage = lazy(() => import('./pages/NotificationSendPage.jsx'));
 const AgentProfilePage = lazy(() => import('./pages/AgentProfilePage.jsx'));
 const ComingSoonPage = lazy(() => import('./pages/ComingSoonPage.jsx'));
 
@@ -255,6 +256,14 @@ function AppContent() {
             element={
               <ProtectedRoute allowedRoles={['super-admin', 'admin', 'agent']}>
                 <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications/send"
+            element={
+              <ProtectedRoute allowedRoles={['super-admin', 'admin']}>
+                <NotificationSendPage />
               </ProtectedRoute>
             }
           />

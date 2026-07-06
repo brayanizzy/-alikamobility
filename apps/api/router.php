@@ -45,11 +45,31 @@ try {
         'GET /reports/members' => 'handleReportsMembers',
         'GET /reports/agent-performance' => 'handleReportsAgentPerformance',
         'GET /reports/cashier' => 'handleReportsCashier',
+        // Module 10 — Notifications
+        'GET /notifications' => 'handleNotificationsGet',
+        'POST /notifications/send' => 'handleNotificationsSend',
+        'POST /notifications/read' => 'handleNotificationMarkRead',
+        'POST /notifications/mark-all-read' => 'handleNotificationMarkAllRead',
+        'GET /notifications/unread-count' => 'handleNotificationsUnreadCount',
+        'GET /notification-templates' => 'handleNotificationTemplatesGet',
+        'POST /notification-templates' => 'handleNotificationTemplatesCreate',
+        'PUT /notification-templates' => 'handleNotificationTemplatesUpdate',
+        'DELETE /notification-templates' => 'handleNotificationTemplatesDelete',
+        'POST /notification-templates/seed' => 'handleNotificationTemplatesSeed',
+        'GET /notification-logs' => 'handleNotificationsLogsGet',
+        'POST /notification-logs/retry' => 'handleNotificationLogsRetry',
+        'POST /notifications/cron-daily-reminders' => 'handleCronDailyReminders',
     ];
 
     $key = "$method $path";
     if (isset($routes[$key])) {
         $routes[$key]();
+        exit;
+    }
+
+    // Module 10 — Notification action routes (POST with ?action= param)
+    if ($method === 'POST' && $path === '/notifications/send-action' && isset($_GET['action'])) {
+        handleNotificationsActionSend();
         exit;
     }
 
