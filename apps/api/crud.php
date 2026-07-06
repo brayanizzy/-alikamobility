@@ -52,8 +52,12 @@ function getCollectionConfig() {
             'super-admin' => '*',
             'admin' => ['agencies', 'vehicle_types', 'vehicles', 'drivers', 'owners', 'lines', 'vehicle_assignments', 'documents', 'debts', 'penalties', 'member_cards', 'organizations', 'users', 'members', 'payments', 'parkings', 'qrcodes', 'receipts', 'notifications', 'admin_audit_logs', 'sessions'],
             'agent' => ['members', 'parkings', 'payments', 'qrcodes', 'receipts', 'notifications', 'vehicles', 'drivers', 'vehicle_types', 'documents', 'member_cards', 'lines', 'vehicle_assignments'],
-            'field_collector' => ['members', 'parkings', 'payments', 'qrcodes', 'receipts', 'vehicles', 'driver'],
-            'office_collector' => ['members', 'payments', 'receipts', 'debts', 'penalties', 'notifications'],
+            'field_collector' => ['members', 'parkings', 'payments', 'qrcodes', 'receipts', 'vehicles', 'drivers', 'vehicle_types'],
+            'office_collector' => ['members', 'payments', 'receipts', 'debts', 'penalties', 'notifications', 'vehicles', 'drivers', 'vehicle_types', 'documents', 'member_cards', 'lines', 'vehicle_assignments'],
+        ],
+        'readonly' => [
+            'field_collector' => ['vehicles', 'drivers', 'vehicle_types', 'documents', 'member_cards', 'lines', 'vehicle_assignments'],
+            'office_collector' => ['vehicles', 'drivers', 'vehicle_types', 'documents', 'member_cards', 'lines', 'vehicle_assignments'],
         ],
     ];
 }
@@ -74,6 +78,27 @@ function checkCollectionPermission($collection, $user) {
     if ($role === 'agent') {
         $subPerms = $perms[$agentType] ?? [];
         if (in_array($collection, $subPerms)) return true;
+    }
+
+    return false;
+}
+
+function isReadOnlyCollection($collection, $user) {
+    $config = getCollectionConfig();
+    $readonly = $config['readonly'] ?? [];
+    $role = $user['role'] ?? '';
+    $agentType = $user['agent_type'] ?? '';
+
+    if ($role === 'super-admin' || $role === 'admin') return false;
+
+    // Check by agent_type first (more specific)
+    if ($agentType && isset($readonly[$agentType])) {
+        if (in_array($collection, $readonly[$agentType])) return true;
+    }
+
+    // Check by role
+    if (isset($readonly[$role])) {
+        if (in_array($collection, $readonly[$role])) return true;
     }
 
     return false;
@@ -167,6 +192,11 @@ function handleCrud($method, $collection, $id) {
 
     if (!checkCollectionPermission($collection, $user)) {
         jsonResponse(['error' => 'Forbidden: insufficient permissions'], 403);
+    }
+
+    // Enforce read-only for agents on transport collections
+    if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE']) && isReadOnlyCollection($collection, $user)) {
+        jsonResponse(['error' => 'Forbidden: lecture seule sur cette collection'], 403);
     }
 
     switch ($method) {

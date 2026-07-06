@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "npm run dev --prefix apps/web",
     "build": "npm run build --prefix apps/web",
-    "lint": "npm run lint --prefix apps/web"
+    "test": "npm run test --prefix apps/web",
+    "lint": "npm run lint --prefix apps/web",
+    "php-lint": "php -l apps/api/config.php && php -l apps/api/auth.php && php -l apps/api/router.php && php -l apps/api/crud.php && php -l apps/api/reports.php && php -l apps/api/notifications.php && php -l apps/api/notification-providers.php && php -l apps/api/notification-templates.php && php -l apps/api/email.php && php -l apps/api/files.php && php -l apps/api/card-security.php"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
