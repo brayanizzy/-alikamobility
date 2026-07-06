@@ -21,7 +21,7 @@ async function deploy() {
     });
     console.log('Connecté!');
 
-    const localDir = process.env.LOCAL_DIST || 'apps/web/dist';
+    const localDir = process.env.LOCAL_DIST || 'dist/apps/web';
     const remoteDir = process.env.REMOTE_DIR || '/home/u135947442/domains/alikamobility.alika-konnect.com/public_html';
 
     console.log(`Déploiement de ${localDir} vers ${remoteDir}...`);

@@ -6,7 +6,9 @@ dist/
 *.pem
 *.key
 *.ppk
-*secret*
+*secret*.*
+!scripts/check-secrets.mjs
+!scripts/*.secret.*
 sshkey.txt
 list-pikapods.mjs
 test-ssh.mjs

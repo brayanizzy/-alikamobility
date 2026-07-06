@@ -6,6 +6,11 @@
 	RewriteRule ^ index.html [L]
 </IfModule>
 
+# Force correct MIME type for JavaScript (ES modules require application/javascript)
+<FilesMatch "\.js$">
+    ForceType application/javascript
+</FilesMatch>
+
 <IfModule mod_headers.c>
 	Header set X-Powered-By "Hostinger Horizons"
 

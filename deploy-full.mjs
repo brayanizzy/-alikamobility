@@ -19,7 +19,7 @@ async function deploy() {
   };
 
   const remoteRoot = process.env.REMOTE_DIR || '/home/u135947442/domains/alikamobility.alika-konnect.com/public_html';
-  const localDist = process.env.LOCAL_DIST || 'apps/web/dist';
+  const localDist = process.env.LOCAL_DIST || 'dist/apps/web';
   const localApi = 'apps/api';
 
   try {
