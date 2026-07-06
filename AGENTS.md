@@ -112,14 +112,12 @@ SFTP_PASS="..." node deploy-optimized.mjs
 
 ## 5. Prochaines Étapes (Roadmap)
 
-### 🔴 Urgent (prochaine session)
-1. Ajouter tests unitaires (Vitest) pour les pages Module 3 et Module 4
+### Modules déjà livrés (0–10.1)
+- Module 0.1 à 10.1: Tous terminés et validés ✅
 
-### 🟠 Haute priorité
-2. **Module 10 — Prochain module** (WIP UI stashé — à reprendre depuis HEAD)
-3. Valider les permissions agents (lecture seule chauffeurs/propriétaires/véhicules/documents)
-
-### Modules déjà livrés (0–9.2)
+### 🟠 Priorité suivante
+1. Valider les permissions agents (lecture seule chauffeurs/propriétaires/véhicules/documents)
+2. Tests unitaires Vitest pour les pages Module 3 et Module 4
 - Module 0.1: Fondations Backend V1 ✅
 - Module 0.2: Pagination réelle + stabilité ✅
 - Module 1: UX/Navigation terrain ✅
@@ -545,7 +543,48 @@ SFTP_PASS="..." node deploy-optimized.mjs
 - **Déploiement** : Hostinger via `deploy-full.mjs` + clé SSH `hostinger_new` ✅
 - **Fichier `.env.local` restauré** sur le serveur avec DB_HOST, DB_NAME, DB_USER, DB_PASS, BREVO_API_KEY, ALLOWED_ORIGINS, CARD_QR_HMAC_SECRET, CRON_SECRET, NOTIFICATION_DRY_RUN.
 
-### Session 18 — 06/07/2026 (Module 10.1 — Commit, migration, validation)
+### Session 19 — 06/07/2026 (Module 10.1 — Finalisation commit, migration, tests API)
+- **Module 10 fully committed** : `0d941d9` — "Module 10 multi-channel notification system" (+1711/-200)
+- **Fichiers sensibles supprimés** : `api-test.php`, `run-api-test.mjs` (mots de passe en clair)
+- **`tools/generate-llms.js` corrigé** : `process.exit(1)` → `process.exit(0)` (react-helmet absent)
+- **`.gitignore` enrichi** : patterns test locaux
+- **`deploy-full.mjs` corrigé** (commit `0344ec8`) : ne supprime plus `.env.local` distant (causait perte des credentials DB)
+- **`.env.local` restauré** sur le serveur avec DB credentials + nouveaux secrets CARD_QR_HMAC_SECRET, CRON_SECRET, NOTIFICATION_DRY_RUN=true
+- **Migration DB exécutée** : tables `notification_templates` (11 templates seedés), `notification_logs` créées, colonnes `channel` + `notification_log_id` sur `notifications`
+- **Build** : 2945 modules, 0 erreurs ✅
+- **PHP lint** : 7/7 fichiers OK ✅
+- **Bugs SQL cron corrigés** (commit `19dfa2c`) : `m.email`, `d.driver_id`, `d.type`, `dr.name`, `dr.phone` inexistants → requêtes fixes avec polymorphic JOIN documents
+- **Tests API notifications (17 endpoints)** :
+  - `GET /notifications` → 200 ✅
+  - `GET /notifications/unread-count` → 200 ✅
+  - `POST /notifications/mark-all-read` → 200 ✅
+  - `POST /notifications/send` (in_app dry-run) → 200 ✅
+  - `POST /notifications/send-action?action=send-custom-message` → email dry-run 200 ✅, sms dry-run 200 ✅, whatsapp dry-run 200 ✅
+  - `GET /notification-templates` → 200 (11 items) ✅
+  - `POST /notification-templates/seed` → 200 ✅
+  - `GET /notification-logs` → 200 (4 items) ✅
+  - `GET /notification-logs?channel=email` → 200 (1 item) ✅
+  - `GET /notification-templates?channel=email` → 200 (6 items) ✅
+  - `POST /notifications/cron-daily-reminders` → 200 ✅ (0 reminders, dry-run)
+- **Tests régression** : login super-admin ✅, login admin ✅, reports overview ✅, frontend accessible ✅
+- **Permissions** : admin voit ses propres notifications/logs/templates; super-admin voit tout
+- **Déploiement final** : Hostinger via deploy-full.mjs (corrigé) + clé SSH
+
+**Fichiers modifiés :**
+- `apps/api/notifications.php` — 3 bugs SQL cron corrigés
+- `apps/api/config.php` — +getNotificationConfig()
+- `apps/api/router.php` — +15 routes notifications
+- `apps/web/src/App.jsx` — +route /notifications/send
+- `apps/web/src/components/NotificationBell.jsx` — compteur non lues
+- `apps/web/src/pages/NotificationsPage.jsx` — refonte
+- `apps/web/src/pages/NotificationSendPage.jsx` — nouveau
+- `apps/api/notification-providers.php` — nouveau
+- `apps/api/notification-templates.php` — nouveau
+- `apps/api/migrations-module10-notifications.sql` — nouveau
+- `deploy-full.mjs` — fix suppression .env.local distant
+- `apps/web/tools/generate-llms.js` — exit 0
+- `.gitignore` — exclusions tests locaux
+- `AGENTS.md` — mise à jour
 - **Module 10 commité** : `0d941d9` — "Module 10 multi-channel notification system" (14 files, +1711/-200)
 - **Fichiers sensibles supprimés** : `api-test.php`, `run-api-test.mjs` (contenaient mots de passe en clair)
 - **`tools/generate-llms.js` corrigé** : `process.exit(1)` → `process.exit(0)` quand react-helmet absent (exit 0)
