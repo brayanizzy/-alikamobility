@@ -543,11 +543,28 @@ SFTP_PASS="..." node deploy-optimized.mjs
 - **Fichiers créés (5)** : `apps/api/notification-providers.php`, `apps/api/notification-templates.php`, `apps/api/migrations-module10-notifications.sql`, `apps/web/src/pages/NotificationSendPage.jsx`, (réécriture `apps/api/notifications.php`)
 - **Fichiers modifiés (6)** : `apps/api/config.php`, `apps/api/router.php`, `apps/web/src/pages/NotificationsPage.jsx`, `apps/web/src/components/NotificationBell.jsx`, `apps/web/src/App.jsx`, `AGENTS.md`
 - **Déploiement** : Hostinger via `deploy-full.mjs` + clé SSH `hostinger_new` ✅
-- **Bug critique découvert** : `deploy-full.mjs` écrasait le `.env.local` du serveur (contenant les credentials DB) avec le fichier local (sans DB). Corrigé en ajoutant la suppression distante de `.env.local` après upload dans `deploy-full.mjs`.
 - **Fichier `.env.local` restauré** sur le serveur avec DB_HOST, DB_NAME, DB_USER, DB_PASS, BREVO_API_KEY, ALLOWED_ORIGINS, CARD_QR_HMAC_SECRET, CRON_SECRET, NOTIFICATION_DRY_RUN.
-- **Fichiers modifiés (suite)** : `deploy-full.mjs` — suppression distante de `.env.local` après upload.
 
-### Session 16 — 03/07/2026 (Phase 3: Sécurité + Stabilisation working tree)
+### Session 18 — 06/07/2026 (Module 10.1 — Commit, migration, validation)
+- **Module 10 commité** : `0d941d9` — "Module 10 multi-channel notification system" (14 files, +1711/-200)
+- **Fichiers sensibles supprimés** : `api-test.php`, `run-api-test.mjs` (contenaient mots de passe en clair)
+- **`tools/generate-llms.js` corrigé** : `process.exit(1)` → `process.exit(0)` quand react-helmet absent (exit 0)
+- **`.gitignore` enrichi** : patterns `api-test.php`, `run-api-test.mjs`, `*-test-local.*`, `local-test-*`
+- **`deploy-full.mjs` corrigé** : ne supprime plus `.env.local` distant après upload (causait perte des credentials DB à chaque déploiement)
+- **`.env.local` restaurant** sur le serveur (DB credentials + nouveaux secrets CARD_QR_HMAC_SECRET + CRON_SECRET générés)
+- **Migration DB exécutée** : tables `notification_templates`, `notification_logs` créées, colonnes `channel` + `notification_log_id` ajoutées à `notifications`
+- **Build** : 2945 modules, 0 erreurs ✅
+- **PHP lint** : 7/7 fichiers OK ✅
+- **API rétablie** : login retourne "Invalid email or password" (DB OK) au lieu de 500
+- **Commits supplémentaires** :
+  - `0d941d9` — Module 10 initial (déjà compté ci-dessus)
+  - Fix `deploy-full.mjs` — correction suppression `.env.local` distant
+
+**Fichiers modifiés :**
+- `deploy-full.mjs` — correction critique (ne plus supprimer .env.local distant)
+- `apps/web/tools/generate-llms.js` — exit 0 au lieu de exit 1
+- `.gitignore` — exclusion fichiers test locaux
+- `AGENTS.md` — mise à jour session log
 
 - **Module 9.2 déjà en production** depuis Session 15 — vérifié intact ✅
 - **Suppression de 3 fichiers sensibles** : `list-pikapods.mjs`, `test-ssh.mjs`, `sshkey.txt` — contenaient mots de passe en clair
