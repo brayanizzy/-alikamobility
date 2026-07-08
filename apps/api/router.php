@@ -9,6 +9,7 @@ require_once __DIR__ . '/notifications.php';
 require_once __DIR__ . '/card-security.php';
 require_once __DIR__ . '/reports.php';
 require_once __DIR__ . '/account-lifecycle.php';
+require_once __DIR__ . '/association-registration.php';
 require_once __DIR__ . '/health.php';
 
 $allowedOrigin = getAllowedOrigin();
@@ -69,6 +70,9 @@ try {
         'POST /auth/invitation/accept' => 'handleInvitationAccept',
         'POST /users/invite' => 'handleUserInvite',
         'GET /users' => 'handleUsersList',
+        // REV-03.1 — Public association registration
+        'POST /public/association-registrations' => 'handleAssociationRegistration',
+        'GET /association-registration-requests' => 'handleAssociationRegistrationRequestsList',
         'GET /health' => 'handleHealth',
     ];
 

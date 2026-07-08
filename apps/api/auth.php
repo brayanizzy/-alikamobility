@@ -37,6 +37,21 @@ function handleLogin() {
         jsonResponse(['error' => 'Invalid email or password'], 401);
     }
 
+    // Block login for non-active accounts (REV-03.1)
+    $status = $user['status'] ?? 'active';
+    if ($status === 'pending_approval') {
+        jsonResponse(['error' => 'Votre compte est en attente de validation par l\'équipe ALIKA MOBILITY.'], 403);
+    }
+    if ($status === 'suspended') {
+        jsonResponse(['error' => 'Votre compte a été suspendu. Contactez votre administrateur.'], 403);
+    }
+    if ($status === 'disabled') {
+        jsonResponse(['error' => 'Ce compte est désactivé.'], 403);
+    }
+    if ($status === 'pending_invite') {
+        jsonResponse(['error' => 'Votre compte n\'est pas encore activé. Veuillez définir votre mot de passe via le lien d\'invitation reçu par email.'], 403);
+    }
+
     $token = generateToken();
     $expiresAt = date('Y-m-d H:i:s', strtotime('+30 days'));
 

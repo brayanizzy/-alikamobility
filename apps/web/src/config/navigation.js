@@ -10,6 +10,7 @@ export const NAV_ITEMS = {
     { label: 'Tableau de bord', path: '/super-admin', icon: LayoutDashboard },
     { label: 'Organisations', path: '/super-admin', icon: Building2 },
     { label: 'Utilisateurs', path: '/users', icon: Users },
+    { label: 'Demandes association', path: '/association-requests', icon: Building2 },
     { label: 'Types de véhicules', path: '/coming-soon/vehicle-types', icon: Car },
     { label: 'Activité système', path: '/coming-soon/system-activity', icon: Activity },
     { label: 'Notifications', path: '/notifications', icon: Bell },

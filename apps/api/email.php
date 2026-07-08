@@ -251,3 +251,50 @@ function buildPasswordChangedHtml($name) {
       <p style="font-size:12px;color:#999">Alika Mobility — Application de gestion de transport<br>Kinshasa, RDC</p>
     </div>';
 }
+
+// =============================================================
+// REV-03.1 — Association registration emails
+// =============================================================
+
+function buildRegistrationReceivedHtml($assocName, $planCode) {
+    $planLabels = ['starter' => 'Starter', 'pro' => 'Pro', 'premium' => 'Premium', 'enterprise' => 'Enterprise'];
+    $planLabel = $planLabels[$planCode] ?? ucfirst($planCode);
+    return '
+    <div style="font-family:sans-serif;max-width:560px;margin:24px auto;background:#fff;border-radius:16px;padding:32px">
+      <div style="background:#FFB800;color:#1a1a2e;font-size:12px;font-weight:bold;padding:4px 12px;border-radius:20px;display:inline-block">Alika Mobility</div>
+      <h1 style="color:#1a1a2e;font-size:24px;margin:16px 0 8px">Demande d\'inscription reçue</h1>
+      <p style="color:#555;line-height:1.6">Bonjour,</p>
+      <p style="color:#555;line-height:1.6">Nous avons bien reçu votre demande d\'inscription pour l\'association <strong>' . htmlspecialchars($assocName) . '</strong>.</p>
+      <div style="background:#f8f9fa;border-radius:12px;padding:20px;margin:20px 0">
+        <p style="margin:0 0 8px;font-weight:bold;color:#1a1a2e">Récapitulatif :</p>
+        <p style="margin:0;color:#555">Association : <strong>' . htmlspecialchars($assocName) . '</strong></p>
+        <p style="margin:4px 0 0;color:#555">Forfait choisi : <strong>' . htmlspecialchars($planLabel) . '</strong></p>
+        <p style="margin:4px 0 0;color:#555">Statut : <strong>En attente de validation</strong></p>
+      </div>
+      <p style="color:#555;line-height:1.6">Notre équipe va examiner votre demande dans les meilleurs délais. Vous recevrez une confirmation par email dès que votre compte sera activé.</p>
+      <p style="color:#555;line-height:1.6">Vous ne pouvez pas vous connecter tant que votre compte n\'est pas validé.</p>
+      <hr style="border:none;border-top:1px solid #eee;margin-top:24px" />
+      <p style="font-size:12px;color:#999">Alika Mobility — Application de gestion de transport<br>Kinshasa, RDC</p>
+    </div>';
+}
+
+function buildNewRegistrationHtml($assocName, $managerName, $managerPhone, $managerEmail, $city, $planCode) {
+    $planLabels = ['starter' => 'Starter', 'pro' => 'Pro', 'premium' => 'Premium', 'enterprise' => 'Enterprise'];
+    $planLabel = $planLabels[$planCode] ?? ucfirst($planCode);
+    return '
+    <div style="font-family:sans-serif;max-width:560px;margin:24px auto;background:#fff;border-radius:16px;padding:32px">
+      <div style="background:#1A237E;color:#fff;font-size:12px;font-weight:bold;padding:4px 12px;border-radius:20px;display:inline-block">Nouvelle demande</div>
+      <h1 style="color:#1a1a2e;font-size:22px;margin:16px 0 8px">Demande d\'association à valider</h1>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0">
+        <tr><td style="padding:8px 12px;color:#555;font-weight:bold">Association</td><td style="padding:8px 12px;color:#1a1a2e">' . htmlspecialchars($assocName) . '</td></tr>
+        <tr><td style="padding:8px 12px;color:#555;font-weight:bold">Responsable</td><td style="padding:8px 12px;color:#1a1a2e">' . htmlspecialchars($managerName) . '</td></tr>
+        <tr><td style="padding:8px 12px;color:#555;font-weight:bold">Téléphone</td><td style="padding:8px 12px;color:#1a1a2e">' . htmlspecialchars($managerPhone) . '</td></tr>
+        <tr><td style="padding:8px 12px;color:#555;font-weight:bold">Email</td><td style="padding:8px 12px;color:#1a1a2e">' . htmlspecialchars($managerEmail) . '</td></tr>
+        <tr><td style="padding:8px 12px;color:#555;font-weight:bold">Ville</td><td style="padding:8px 12px;color:#1a1a2e">' . htmlspecialchars($city) . '</td></tr>
+        <tr><td style="padding:8px 12px;color:#555;font-weight:bold">Forfait</td><td style="padding:8px 12px;color:#1a1a2e">' . htmlspecialchars($planLabel) . '</td></tr>
+      </table>
+      <a href="https://alikamobility.alika-konnect.com/super-admin" style="display:inline-block;background:#1A237E;color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:bold;margin-top:8px">Voir dans le tableau de bord</a>
+      <hr style="border:none;border-top:1px solid #eee;margin-top:24px" />
+      <p style="font-size:12px;color:#999">Alika Mobility</p>
+    </div>';
+}

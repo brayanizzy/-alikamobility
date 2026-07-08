@@ -17,6 +17,8 @@ const SignupPage = lazy(() => import('./pages/SignupPage.jsx'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage.jsx'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage.jsx'));
 const AcceptInvitationPage = lazy(() => import('./pages/AcceptInvitationPage.jsx'));
+const RegisterAssociationPage = lazy(() => import('./pages/RegisterAssociationPage.jsx'));
+const AssociationRequestsPage = lazy(() => import('./pages/AssociationRequestsPage.jsx'));
 const PendingApprovalPage = lazy(() => import('./pages/PendingApprovalPage.jsx'));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage.jsx'));
 const ParkingsPage = lazy(() => import('./pages/ParkingsPage.jsx'));
@@ -139,6 +141,7 @@ function AppContent() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+          <Route path="/register-association" element={<RegisterAssociationPage />} />
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
@@ -190,6 +193,14 @@ function AppContent() {
             element={
               <ProtectedRoute allowedRoles={['super-admin', 'admin']}>
                 <UsersManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/association-requests"
+            element={
+              <ProtectedRoute allowedRoles={['super-admin']}>
+                <AssociationRequestsPage />
               </ProtectedRoute>
             }
           />

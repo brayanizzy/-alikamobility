@@ -19,6 +19,7 @@ $files = [
     __DIR__ . '/../apps/api/files.php',
     __DIR__ . '/../apps/api/card-security.php',
     __DIR__ . '/../apps/api/account-lifecycle.php',
+    __DIR__ . '/../apps/api/association-registration.php',
 ];
 
 $failed = 0;

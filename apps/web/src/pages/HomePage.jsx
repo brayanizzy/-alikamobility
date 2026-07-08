@@ -210,10 +210,10 @@ const HomePage = () => {
                     Se connecter <ArrowRight className="w-4 h-4" />
                   </Link>
                   <Link
-                    to="/signup"
+                    to="/register-association"
                     className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-secondary/10 text-secondary hover:bg-secondary/20 font-bold text-base transition-all flex items-center justify-center"
                   >
-                    Demander une démo
+                    Créer mon association
                   </Link>
                 </div>
               </motion.div>
@@ -489,10 +489,10 @@ const HomePage = () => {
                   Se connecter <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link
-                  to="/signup"
+                  to="/register-association"
                   className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-primary-foreground/10 text-primary-foreground border border-primary-foreground/30 hover:bg-primary-foreground/20 font-bold text-base transition-all flex items-center justify-center"
                 >
-                  Demander une démo
+                  Créer mon association
                 </Link>
               </div>
             </div>

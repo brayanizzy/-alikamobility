@@ -44,8 +44,11 @@ const LoginPage = () => {
       console.error(err);
       const status = err?.status || err?.response?.status;
       const message = err?.message || '';
+      const serverMsg = err?.response?.error || '';
 
-      if (status === 400 || /authenticate|auth/i.test(message)) {
+      if (status === 403 && serverMsg) {
+        setError(serverMsg);
+      } else if (status === 400 || status === 401 || /authenticate|auth|invalid/i.test(message)) {
         setError('Email ou mot de passe incorrect. Vérifiez les identifiants puis réessayez.');
       } else if (!navigator.onLine) {
         setError('Connexion internet indisponible. Réessayez dès que le réseau revient.');
@@ -138,10 +141,15 @@ const LoginPage = () => {
             </button>
           </form>
 
-          <p className="mt-6 text-sm text-muted-foreground text-center leading-relaxed">
-            Nouvelle association ?{' '}
-            <Link to="/signup" className="text-primary font-bold hover:underline">Inscrire mon association</Link>
-          </p>
+          <div className="mt-6 space-y-2">
+            <p className="text-sm text-muted-foreground text-center leading-relaxed">
+              Nouvelle association ?{' '}
+              <Link to="/register-association" className="text-primary font-bold hover:underline">Créer mon association</Link>
+            </p>
+            <p className="text-xs text-muted-foreground text-center leading-relaxed">
+              Votre association n'est pas encore validée ? Votre accès sera activé après approbation par l'équipe ALIKA MOBILITY.
+            </p>
+          </div>
         </div>
       </div>
 
