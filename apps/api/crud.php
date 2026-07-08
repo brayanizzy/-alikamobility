@@ -172,6 +172,193 @@ function validateCollectionData($collection, $data) {
     return $errors;
 }
 
+// =============================================================
+// TENANT ISOLATION HELPERS (REV-01.2)
+// Guarantees admin/agent only access data within their own
+// organization. Super-admin retains global access.
+// =============================================================
+
+function isSuperAdmin($user) {
+    return ($user['role'] ?? '') === 'super-admin';
+}
+
+function getUserOrgId($user) {
+    return $user['organization_id'] ?? null;
+}
+
+/**
+ * Collections whose organization is determined indirectly via a
+ * relation to another table holding organization_id.
+ * collection => [foreign_table, foreign_key_column, org_column_on_foreign_table]
+ */
+function getCollectionOrgRelations() {
+    return [
+        'drivers'  => ['members',  'member_id',  'organization_id'],
+        'owners'   => ['members',  'member_id',  'organization_id'],
+        'receipts' => ['payments', 'payment_id', 'organization_id'],
+    ];
+}
+
+/**
+ * Global reference data shared across all tenants (no org scoping).
+ */
+function isGlobalReferenceCollection($collection) {
+    return in_array($collection, ['vehicle_types'], true);
+}
+
+/**
+ * System collections that non-super-admin users must not create/modify/delete.
+ */
+function isSystemCollection($collection) {
+    return in_array($collection, ['organizations', 'sessions', 'vehicle_types', 'admin_audit_logs'], true);
+}
+
+/**
+ * Cached introspection: does the given table have a column?
+ */
+function tableHasColumn($db, $table, $column) {
+    static $cache = [];
+    $key = $table . '.' . $column;
+    if (isset($cache[$key])) return $cache[$key];
+    try {
+        $stmt = $db->prepare("SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1");
+        $stmt->execute([$table, $column]);
+        $cache[$key] = (bool)$stmt->fetch();
+    } catch (Throwable $e) {
+        $cache[$key] = false;
+    }
+    return $cache[$key];
+}
+
+/**
+ * Build the tenant WHERE clause fragment for a collection + user.
+ * Super-admin -> '' (no enforced scope; may optionally filter via client filter).
+ * Admin/agent -> SQL fragment restricting to their organization.
+ * Pushes bound params into $params.
+ * Returns '1=0' when no tenant boundary can be established (safe deny).
+ */
+function buildTenantWhereClause($collection, $user, &$params) {
+    if (isSuperAdmin($user)) {
+        return '';
+    }
+    $orgId = getUserOrgId($user);
+
+    // organizations table: the PK (id) IS the org -> admin sees only their own org
+    if ($collection === 'organizations') {
+        if ($orgId === null) return '1=0';
+        $params[] = $orgId;
+        return '`id` = ?';
+    }
+    // sessions: scope by user_id (own session only) — never expose other users' tokens
+    if ($collection === 'sessions') {
+        $params[] = $user['id'] ?? '';
+        return '`user_id` = ?';
+    }
+    // admin_audit_logs: no tenant column -> super-admin only
+    if ($collection === 'admin_audit_logs') {
+        return '1=0';
+    }
+    // Global reference data (vehicle_types) -> no tenant filter
+    if (isGlobalReferenceCollection($collection)) {
+        return '';
+    }
+
+    $db = getDB();
+    // Direct organization_id column?
+    if (tableHasColumn($db, $collection, 'organization_id')) {
+        if ($orgId === null) return '1=0';
+        $params[] = $orgId;
+        return '`organization_id` = ?';
+    }
+    // Relational scoping (drivers/owners/receipts via foreign table)
+    $relations = getCollectionOrgRelations();
+    if (isset($relations[$collection])) {
+        if ($orgId === null) return '1=0';
+        [$fkTable, $fkCol, $orgCol] = $relations[$collection];
+        $params[] = $orgId;
+        return "`$fkCol` IN (SELECT `id` FROM `$fkTable` WHERE `$orgCol` = ?)";
+    }
+    // No tenant boundary known -> deny all for non-super-admin (safe default)
+    return '1=0';
+}
+
+/**
+ * For GET one / update / delete: fetch a record only if it belongs to
+ * the user's organization (or user is super-admin). Returns the record
+ * array when authorized, or null (-> 404 to avoid revealing existence).
+ */
+function fetchScopedRecord($db, $collection, $id, $user) {
+    $params = [];
+    $tenantClause = buildTenantWhereClause($collection, $user, $params);
+    if ($tenantClause !== '') {
+        $sql = "SELECT * FROM `$collection` WHERE $tenantClause AND `id` = ?";
+    } else {
+        $sql = "SELECT * FROM `$collection` WHERE `id` = ?";
+    }
+    $params[] = $id;
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $record = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $record ?: null;
+}
+
+/**
+ * Enforce tenant rules on a CREATE payload (mutates $data).
+ * - Non-super-admin cannot create system collections.
+ * - Forces organization_id to the user's org (ignores client value).
+ * - For relational collections, verifies the linked record belongs to org.
+ */
+function enforceTenantCreate($collection, $user, &$data) {
+    if (isSuperAdmin($user)) return;
+    $orgId = getUserOrgId($user);
+    if (isSystemCollection($collection)) {
+        jsonResponse(['error' => 'Forbidden: cannot create this collection'], 403);
+    }
+    $db = getDB();
+    if (tableHasColumn($db, $collection, 'organization_id')) {
+        $data['organization_id'] = $orgId;
+    }
+    $relations = getCollectionOrgRelations();
+    if (isset($relations[$collection]) && !empty($data[$relations[$collection][1]])) {
+        [$fkTable, $fkCol, $orgCol] = $relations[$collection];
+        $chk = $db->prepare("SELECT 1 FROM `$fkTable` WHERE `id` = ? AND `$orgCol` = ? LIMIT 1");
+        $chk->execute([$data[$fkCol], $orgId]);
+        if (!$chk->fetch()) {
+            jsonResponse(['error' => 'La référence fournie n\'appartient pas à votre organisation.'], 403);
+        }
+    }
+}
+
+/**
+ * Enforce tenant rules on an UPDATE payload (mutates $data). The record
+ * has already been verified to belong to the user's org via fetchScopedRecord.
+ * - Non-super-admin cannot modify system collections.
+ * - Prevents moving a record to another organization.
+ * - For relational collections, verifies a changed reference belongs to org.
+ */
+function enforceTenantUpdate($collection, $user, &$data) {
+    if (isSuperAdmin($user)) return;
+    $orgId = getUserOrgId($user);
+    if (isSystemCollection($collection)) {
+        jsonResponse(['error' => 'Forbidden: cannot modify this collection'], 403);
+    }
+    $db = getDB();
+    if (tableHasColumn($db, $collection, 'organization_id')) {
+        $data['organization_id'] = $orgId;
+    }
+    $relations = getCollectionOrgRelations();
+    if (isset($relations[$collection]) && array_key_exists($relations[$collection][1], $data)) {
+        [$fkTable, $fkCol, $orgCol] = $relations[$collection];
+        if ($data[$fkCol] !== null && $data[$fkCol] !== '') {
+            $chk = $db->prepare("SELECT 1 FROM `$fkTable` WHERE `id` = ? AND `$orgCol` = ? LIMIT 1");
+            $chk->execute([$data[$fkCol], $orgId]);
+            if (!$chk->fetch()) {
+                jsonResponse(['error' => 'La référence fournie n\'appartient pas à votre organisation.'], 403);
+            }
+        }
+    }
+}
+
 function handleCrud($method, $collection, $id) {
     $user = getAuthUser();
     $allowedTables = [
@@ -235,9 +422,7 @@ function handleGetOne($collection, $id, $user) {
         jsonResponse(['error' => 'Unauthorized'], 401);
     }
     $db = getDB();
-    $stmt = $db->prepare("SELECT * FROM `$collection` WHERE id = ?");
-    $stmt->execute([$id]);
-    $record = $stmt->fetch(PDO::FETCH_ASSOC);
+    $record = fetchScopedRecord($db, $collection, $id, $user);
 
     if (!$record) {
         jsonResponse(['error' => 'Record not found'], 404);
@@ -266,6 +451,12 @@ function handleGetList($collection, $user) {
 
     $where = [];
     $params = [];
+
+    // Enforce tenant isolation FIRST so a client filter can never override it
+    $tenantClause = buildTenantWhereClause($collection, $user, $params);
+    if ($tenantClause !== '') {
+        $where[] = $tenantClause;
+    }
 
     if ($filterStr) {
         $filterSql = parseFilter($filterStr, $params);
@@ -359,6 +550,9 @@ function handleCreate($collection, $user) {
         jsonResponse(['error' => implode('; ', $validationErrors)], 400);
     }
 
+    // Enforce tenant isolation on the payload (forces org_id, checks relations)
+    enforceTenantCreate($collection, $user, $data);
+
     $columns = array_keys($data);
     $safeColumns = [];
     foreach ($columns as $col) {
@@ -438,10 +632,8 @@ function handleUpdate($collection, $id, $user) {
     $data = getRequestBody();
     $isFormData = strpos($_SERVER['CONTENT_TYPE'] ?? '', 'multipart/form-data') !== false;
 
-    // Check record exists
-    $stmt = $db->prepare("SELECT id FROM `$collection` WHERE id = ?");
-    $stmt->execute([$id]);
-    if (!$stmt->fetch()) {
+    // Verify record exists AND belongs to the user's organization
+    if (!fetchScopedRecord($db, $collection, $id, $user)) {
         jsonResponse(['error' => 'Record not found'], 404);
     }
 
@@ -462,6 +654,9 @@ function handleUpdate($collection, $id, $user) {
     if (!empty($validationErrors)) {
         jsonResponse(['error' => implode('; ', $validationErrors)], 400);
     }
+
+    // Enforce tenant isolation on the payload (prevents org change, checks relations)
+    enforceTenantUpdate($collection, $user, $data);
 
     $columns = array_keys($data);
     $safeColumns = [];
@@ -505,11 +700,15 @@ function handleDelete($collection, $id, $user) {
         jsonResponse(['error' => 'Unauthorized'], 401);
     }
 
+    // Non-super-admin cannot delete system collections
+    if (!isSuperAdmin($user) && isSystemCollection($collection)) {
+        jsonResponse(['error' => 'Forbidden: cannot delete this collection'], 403);
+    }
+
     $db = getDB();
 
-    $stmt = $db->prepare("SELECT id FROM `$collection` WHERE id = ?");
-    $stmt->execute([$id]);
-    if (!$stmt->fetch()) {
+    // Verify record exists AND belongs to the user's organization
+    if (!fetchScopedRecord($db, $collection, $id, $user)) {
         jsonResponse(['error' => 'Record not found'], 404);
     }
 
