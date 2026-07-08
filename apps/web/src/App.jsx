@@ -14,7 +14,11 @@ import { useAuth } from './contexts/AuthContext.jsx';
 const HomePage = lazy(() => import('./pages/HomePage.jsx'));
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 const SignupPage = lazy(() => import('./pages/SignupPage.jsx'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage.jsx'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage.jsx'));
+const AcceptInvitationPage = lazy(() => import('./pages/AcceptInvitationPage.jsx'));
 const PendingApprovalPage = lazy(() => import('./pages/PendingApprovalPage.jsx'));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage.jsx'));
 const ParkingsPage = lazy(() => import('./pages/ParkingsPage.jsx'));
 
 // Super Admin
@@ -25,6 +29,7 @@ const AdminAssociationDashboard = lazy(() => import('./pages/AdminAssociationDas
 const ReportsPage = lazy(() => import('./pages/ReportsPage.jsx'));
 const MembersPage = lazy(() => import('./pages/MembersPage.jsx'));
 const AgentsPage = lazy(() => import('./pages/AgentsPage.jsx'));
+const UsersManagementPage = lazy(() => import('./pages/UsersManagementPage.jsx'));
 
 // Agent / Recouvreur
 const AgentDashboard = lazy(() => import('./pages/AgentDashboard.jsx'));
@@ -131,7 +136,11 @@ function AppContent() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
           {/* Super Admin Routes */}
           <Route
@@ -173,6 +182,14 @@ function AppContent() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AgentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute allowedRoles={['super-admin', 'admin']}>
+                <UsersManagementPage />
               </ProtectedRoute>
             }
           />

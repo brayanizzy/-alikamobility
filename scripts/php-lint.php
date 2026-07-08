@@ -18,6 +18,7 @@ $files = [
     __DIR__ . '/../apps/api/email.php',
     __DIR__ . '/../apps/api/files.php',
     __DIR__ . '/../apps/api/card-security.php',
+    __DIR__ . '/../apps/api/account-lifecycle.php',
 ];
 
 $failed = 0;

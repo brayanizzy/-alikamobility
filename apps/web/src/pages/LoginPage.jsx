@@ -102,7 +102,7 @@ const LoginPage = () => {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <label className="text-sm font-medium text-foreground tracking-wide uppercase">Mot de passe</label>
-                <a href="#" className="text-xs text-primary hover:underline font-medium">Mot de passe oublié ?</a>
+                <Link to="/forgot-password" className="text-xs text-primary hover:underline font-medium">Mot de passe oublié ?</Link>
               </div>
               <div className="relative">
                 <input

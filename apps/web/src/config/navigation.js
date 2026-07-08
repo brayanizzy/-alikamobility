@@ -9,7 +9,7 @@ export const NAV_ITEMS = {
   'super-admin': [
     { label: 'Tableau de bord', path: '/super-admin', icon: LayoutDashboard },
     { label: 'Organisations', path: '/super-admin', icon: Building2 },
-    { label: 'Utilisateurs', path: '/super-admin', icon: Users },
+    { label: 'Utilisateurs', path: '/users', icon: Users },
     { label: 'Types de véhicules', path: '/coming-soon/vehicle-types', icon: Car },
     { label: 'Activité système', path: '/coming-soon/system-activity', icon: Activity },
     { label: 'Notifications', path: '/notifications', icon: Bell },
@@ -20,7 +20,7 @@ export const NAV_ITEMS = {
       { label: 'Membres', path: '/members', icon: Users },
       { label: 'Paiements', path: '/payment-history', icon: DollarSign },
       { label: 'Parkings', path: '/parkings', icon: MapPin },
-      { label: 'Agents', path: '/agents', icon: UserCog },
+      { label: 'Agents', path: '/users', icon: UserCog },
       { label: 'Rapports', path: '/reports', icon: BarChart3 },
       { label: 'Rapport caisse', path: '/reports/cashier', icon: DollarSign },
       { label: 'Notifications', path: '/notifications', icon: Bell },

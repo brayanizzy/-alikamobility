@@ -8,6 +8,7 @@ require_once __DIR__ . '/email.php';
 require_once __DIR__ . '/notifications.php';
 require_once __DIR__ . '/card-security.php';
 require_once __DIR__ . '/reports.php';
+require_once __DIR__ . '/account-lifecycle.php';
 require_once __DIR__ . '/health.php';
 
 $allowedOrigin = getAllowedOrigin();
@@ -60,6 +61,14 @@ try {
         'GET /notification-logs' => 'handleNotificationsLogsGet',
         'POST /notification-logs/retry' => 'handleNotificationLogsRetry',
         'POST /notifications/cron-daily-reminders' => 'handleCronDailyReminders',
+        // REV-02 — Account lifecycle & auth emails
+        'POST /auth/forgot-password' => 'handleForgotPassword',
+        'GET /auth/reset-password/verify' => 'handleResetPasswordVerify',
+        'POST /auth/reset-password' => 'handleResetPassword',
+        'GET /auth/invitation/verify' => 'handleInvitationVerify',
+        'POST /auth/invitation/accept' => 'handleInvitationAccept',
+        'POST /users/invite' => 'handleUserInvite',
+        'GET /users' => 'handleUsersList',
         'GET /health' => 'handleHealth',
     ];
 
@@ -72,6 +81,16 @@ try {
     // Module 10 — Notification action routes (POST with ?action= param)
     if ($method === 'POST' && $path === '/notifications/send-action' && isset($_GET['action'])) {
         handleNotificationsActionSend();
+        exit;
+    }
+
+    // REV-02 — User lifecycle action routes (dynamic id segment)
+    if ($method === 'POST' && preg_match('#^/users/([a-zA-Z0-9=_-]+)/(resend-invitation|suspend|reactivate|force-password-reset)$#', $path, $m)) {
+        $action = $m[2];
+        if ($action === 'resend-invitation') handleUserResendInvitation($m[1]);
+        elseif ($action === 'suspend') handleUserSuspend($m[1]);
+        elseif ($action === 'reactivate') handleUserReactivate($m[1]);
+        elseif ($action === 'force-password-reset') handleUserForcePasswordReset($m[1]);
         exit;
     }
 
