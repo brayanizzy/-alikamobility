@@ -79,7 +79,7 @@ const AssociationRequestsPage = () => {
     try {
       await client.request(`/association-registration-requests/${detail.request.id}/approve`, {
         method: 'POST',
-        body: { plan_code: 'starter', subscription_status: 'trial', trial_days: 14 },
+        body: { plan_code: detail.request.plan_code, subscription_status: 'trial', trial_days: 14 },
       });
       closeDetail();
       fetchReq();
