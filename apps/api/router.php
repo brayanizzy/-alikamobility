@@ -73,6 +73,7 @@ try {
         // REV-03.1 — Public association registration
         'POST /public/association-registrations' => 'handleAssociationRegistration',
         'GET /association-registration-requests' => 'handleAssociationRegistrationRequestsList',
+        // REV-03.2 — Approve/reject/request-correction (dynamic ID in block below)
         'GET /health' => 'handleHealth',
     ];
 
@@ -95,6 +96,21 @@ try {
         elseif ($action === 'suspend') handleUserSuspend($m[1]);
         elseif ($action === 'reactivate') handleUserReactivate($m[1]);
         elseif ($action === 'force-password-reset') handleUserForcePasswordReset($m[1]);
+        exit;
+    }
+
+    // REV-03.2 — Association registration detail & decisions
+    if (preg_match('#^/association-registration-requests/([a-zA-Z0-9=_+-]+)$#', $path, $m)) {
+        if ($method === 'GET') handleAssociationRegistrationRequestDetail($m[1]);
+        else jsonResponse(['error' => 'Method not allowed'], 405);
+        exit;
+    }
+    if (preg_match('#^/association-registration-requests/([a-zA-Z0-9=_+-]+)/(approve|reject|request-correction)$#', $path, $m)) {
+        if ($method !== 'POST') { jsonResponse(['error' => 'Method not allowed'], 405); exit; }
+        $action = $m[2];
+        if ($action === 'approve') handleAssociationRegistrationApprove($m[1]);
+        elseif ($action === 'reject') handleAssociationRegistrationReject($m[1]);
+        elseif ($action === 'request-correction') handleAssociationRegistrationRequestCorrection($m[1]);
         exit;
     }
 

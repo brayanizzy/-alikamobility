@@ -1,9 +1,16 @@
 <?php
 /**
- * REV-03.1 — Public association registration flow
+ * REV-03.1 & REV-03.2 — Association registration flow
  *
- * POST /public/association-registrations   (public) submit a registration request
- * GET  /association-registration-requests   (super-admin) list requests
+ * REV-03.1 — Public registration
+ *   POST /public/association-registrations            (public) submit
+ *   GET  /association-registration-requests            (super-admin) list
+ *
+ * REV-03.2 — Super-admin decision
+ *   GET  /association-registration-requests/{id}       (super-admin) detail
+ *   POST /association-registration-requests/{id}/approve   (super-admin)
+ *   POST /association-registration-requests/{id}/reject    (super-admin)
+ *   POST /association-registration-requests/{id}/request-correction (super-admin)
  *
  * Creates: organization (pending), admin user (pending_approval),
  * subscription (pending_validation), registration request (pending_approval).
@@ -199,5 +206,290 @@ function handleAssociationRegistrationRequestsList() {
         'totalPages' => $perPage > 0 ? (int)ceil($totalItems / $perPage) : 0,
         'items' => $items,
         'stats' => $stats,
+    ]);
+}
+
+// =============================================================
+// REV-03.2 — Super-admin decision handlers
+// =============================================================
+
+function requireSuperAdmin() {
+    $user = getAuthUser();
+    if (!$user) { jsonResponse(['error' => 'Unauthorized'], 401); }
+    if (($user['role'] ?? '') !== 'super-admin') { jsonResponse(['error' => 'Forbidden'], 403); }
+    return $user;
+}
+
+function loadRegistrationRequest($db, $id) {
+    $stmt = $db->prepare("SELECT * FROM association_registration_requests WHERE id = ? LIMIT 1");
+    $stmt->execute([$id]);
+    $req = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$req) { jsonResponse(['error' => 'Demande introuvable.'], 404); }
+    return $req;
+}
+
+/**
+ * GET /association-registration-requests/{id}
+ * Returns full detail: request + organization + admin user + subscription + plan.
+ */
+function handleAssociationRegistrationRequestDetail($id) {
+    $user = requireSuperAdmin();
+    $db = getDB();
+
+    $req = loadRegistrationRequest($db, $id);
+    $orgId = $req['organization_id'];
+    $userId = $req['admin_user_id'];
+
+    $orgStmt = $db->prepare("SELECT * FROM organizations WHERE id = ? LIMIT 1");
+    $orgStmt->execute([$orgId]);
+    $org = $orgStmt->fetch(PDO::FETCH_ASSOC);
+
+    $userStmt = $db->prepare("SELECT id, email, name, role, phone, status, created, updated FROM users WHERE id = ? LIMIT 1");
+    $userStmt->execute([$userId]);
+    $adminUser = $userStmt->fetch(PDO::FETCH_ASSOC);
+
+    $subStmt = $db->prepare("SELECT * FROM organization_subscriptions WHERE organization_id = ? ORDER BY created_at DESC LIMIT 1");
+    $subStmt->execute([$orgId]);
+    $subscription = $subStmt->fetch(PDO::FETCH_ASSOC);
+
+    $plan = null;
+    if ($req['plan_code']) {
+        $planStmt = $db->prepare("SELECT * FROM subscription_plans WHERE code = ? LIMIT 1");
+        $planStmt->execute([$req['plan_code']]);
+        $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    jsonResponse([
+        'request' => $req,
+        'organization' => $org,
+        'admin_user' => $adminUser,
+        'subscription' => $subscription,
+        'plan' => $plan,
+    ]);
+}
+
+/**
+ * POST /association-registration-requests/{id}/approve
+ * Body: { plan_code?, subscription_status?, trial_days?, note? }
+ * Transitions: request->approved, org->active, user->active, sub->trial/active.
+ */
+function handleAssociationRegistrationApprove($id) {
+    $superAdmin = requireSuperAdmin();
+    $db = getDB();
+
+    $req = loadRegistrationRequest($db, $id);
+
+    // Prevent double-approve
+    if ($req['status'] === 'approved') {
+        jsonResponse(['error' => 'Cette demande a déjà été approuvée.'], 409);
+    }
+    if ($req['status'] !== 'pending_approval' && $req['status'] !== 'needs_correction') {
+        jsonResponse(['error' => 'Seules les demandes en attente ou en correction peuvent être approuvées.'], 400);
+    }
+
+    $body = getRequestBody();
+    $planCode = trim($body['plan_code'] ?? $req['plan_code'] ?? '');
+    $subStatus = trim($body['subscription_status'] ?? 'trial');
+    $trialDays = max(0, intval($body['trial_days'] ?? 14));
+    $note = trim($body['note'] ?? $req['review_note'] ?? '');
+
+    if (!validPlanCode($planCode)) {
+        jsonResponse(['error' => 'Code de forfait invalide.'], 400);
+    }
+    if (!in_array($subStatus, ['trial', 'active'], true)) {
+        jsonResponse(['error' => 'Le statut d\'abonnement doit être trial ou active.'], 400);
+    }
+
+    $orgId = $req['organization_id'];
+    $userId = $req['admin_user_id'];
+    $now = date('Y-m-d H:i:s');
+
+    try {
+        $db->beginTransaction();
+
+        // 1. Update organization → active
+        $db->prepare("UPDATE organizations SET status = 'active', plan_code = ?, approved_at = ?, approved_by = ?, updated = ? WHERE id = ?")
+            ->execute([$planCode, $now, $superAdmin['id'], $now, $orgId]);
+
+        // 2. Update admin user → active (keep their password)
+        $db->prepare("UPDATE users SET status = 'active', updated = ? WHERE id = ?")
+            ->execute([$now, $userId]);
+
+        // 3. Update subscription → trial or active with dates
+        $trialStart = $now;
+        $trialEnd = $trialDays > 0 ? date('Y-m-d H:i:s', strtotime("+$trialDays days")) : null;
+        $subStart = ($subStatus === 'active') ? $now : null;
+        $subEnd = null;
+
+        $db->prepare("UPDATE organization_subscriptions SET status = ?, plan_code = ?, trial_starts_at = ?, trial_ends_at = ?, starts_at = ?, ends_at = ?, updated_at = ? WHERE organization_id = ?")
+            ->execute([$subStatus, $planCode, $trialStart, $trialEnd, $subStart, $subEnd, $now, $orgId]);
+
+        // 4. Update request → approved
+        $db->prepare("UPDATE association_registration_requests SET status = 'approved', review_note = ?, reviewed_at = ?, reviewed_by = ?, updated_at = ? WHERE id = ?")
+            ->execute([$note, $now, $superAdmin['id'], $now, $id]);
+
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        error_log('Approve registration error: ' . $e->getMessage());
+        jsonResponse(['error' => 'Erreur lors de l\'approbation.'], 500);
+    }
+
+    // --- Emails (best-effort, never block) ---
+    // Get org + admin info for email
+    $orgStmt = $db->prepare("SELECT name, contact_email FROM organizations WHERE id = ? LIMIT 1");
+    $orgStmt->execute([$orgId]);
+    $org = $orgStmt->fetch(PDO::FETCH_ASSOC);
+
+    $adminStmt = $db->prepare("SELECT email, name FROM users WHERE id = ? LIMIT 1");
+    $adminStmt->execute([$userId]);
+    $admin = $adminStmt->fetch(PDO::FETCH_ASSOC);
+
+    try {
+        $html = buildAccountApprovedHtml($org['name'] ?? '', $planCode, $subStatus, $admin['email'] ?? '', $trialDays);
+        $r = sendEmail($admin['email'] ?: $req['manager_email'], $admin['name'] ?? 'Admin', 'Votre compte ALIKA MOBILITY est validé', $html);
+        error_log('Approve email to ' . ($admin['email'] ?? '?') . ' | success=' . ($r['success'] ? '1' : '0'));
+    } catch (Throwable $e) {
+        error_log('Approve email error: ' . $e->getMessage());
+    }
+
+    jsonResponse([
+        'success' => true,
+        'message' => 'Demande approuvée avec succès.',
+        'organization_status' => 'active',
+        'user_status' => 'active',
+        'subscription_status' => $subStatus,
+    ]);
+}
+
+/**
+ * POST /association-registration-requests/{id}/reject
+ * Body: { reason (required), note? }
+ */
+function handleAssociationRegistrationReject($id) {
+    $superAdmin = requireSuperAdmin();
+    $db = getDB();
+
+    $req = loadRegistrationRequest($db, $id);
+
+    if ($req['status'] === 'rejected') {
+        jsonResponse(['error' => 'Cette demande a déjà été refusée.'], 409);
+    }
+    if ($req['status'] !== 'pending_approval' && $req['status'] !== 'needs_correction') {
+        jsonResponse(['error' => 'Seules les demandes en attente ou en correction peuvent être refusées.'], 400);
+    }
+
+    $body = getRequestBody();
+    $reason = trim($body['reason'] ?? '');
+    $note = trim($body['note'] ?? $req['review_note'] ?? '');
+
+    if (!$reason) {
+        jsonResponse(['error' => 'La raison du refus est obligatoire.'], 400);
+    }
+
+    $orgId = $req['organization_id'];
+    $userId = $req['admin_user_id'];
+    $now = date('Y-m-d H:i:s');
+
+    try {
+        $db->beginTransaction();
+
+        // 1. Organization → rejected
+        $db->prepare("UPDATE organizations SET status = 'rejected', rejected_at = ?, rejection_reason = ?, updated = ? WHERE id = ?")
+            ->execute([$now, $reason, $now, $orgId]);
+
+        // 2. Admin user → disabled (login blocked)
+        $db->prepare("UPDATE users SET status = 'disabled', updated = ? WHERE id = ?")
+            ->execute([$now, $userId]);
+
+        // 3. Subscription → cancelled
+        $db->prepare("UPDATE organization_subscriptions SET status = 'cancelled', updated_at = ? WHERE organization_id = ?")
+            ->execute([$now, $orgId]);
+
+        // 4. Request → rejected
+        $fullNote = $reason;
+        if ($note && $note !== $reason) {
+            $fullNote = $reason . ' | ' . $note;
+        }
+        $db->prepare("UPDATE association_registration_requests SET status = 'rejected', review_note = ?, reviewed_at = ?, reviewed_by = ?, updated_at = ? WHERE id = ?")
+            ->execute([$fullNote, $now, $superAdmin['id'], $now, $id]);
+
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        error_log('Reject registration error: ' . $e->getMessage());
+        jsonResponse(['error' => 'Erreur lors du refus.'], 500);
+    }
+
+    // --- Emails (best-effort) ---
+    $orgStmt = $db->prepare("SELECT name FROM organizations WHERE id = ? LIMIT 1");
+    $orgStmt->execute([$orgId]);
+    $org = $orgStmt->fetch(PDO::FETCH_ASSOC);
+
+    $adminStmt = $db->prepare("SELECT email, name FROM users WHERE id = ? LIMIT 1");
+    $adminStmt->execute([$userId]);
+    $admin = $adminStmt->fetch(PDO::FETCH_ASSOC);
+
+    try {
+        $html = buildAccountRejectedHtml($org['name'] ?? '', $reason);
+        $r = sendEmail($admin['email'] ?: $req['manager_email'], $admin['name'] ?? 'Responsable', 'Votre demande ALIKA MOBILITY n\'a pas été approuvée', $html);
+        error_log('Reject email to ' . ($admin['email'] ?? '?') . ' | success=' . ($r['success'] ? '1' : '0'));
+    } catch (Throwable $e) {
+        error_log('Reject email error: ' . $e->getMessage());
+    }
+
+    jsonResponse([
+        'success' => true,
+        'message' => 'Demande refusée.',
+    ]);
+}
+
+/**
+ * POST /association-registration-requests/{id}/request-correction
+ * Body: { note (required) }
+ */
+function handleAssociationRegistrationRequestCorrection($id) {
+    $superAdmin = requireSuperAdmin();
+    $db = getDB();
+
+    $req = loadRegistrationRequest($db, $id);
+
+    if ($req['status'] !== 'pending_approval') {
+        jsonResponse(['error' => 'Seules les demandes en attente peuvent être marquées comme nécessitant une correction.'], 400);
+    }
+
+    $body = getRequestBody();
+    $note = trim($body['note'] ?? '');
+
+    if (!$note) {
+        jsonResponse(['error' => 'La note de correction est obligatoire.'], 400);
+    }
+
+    $now = date('Y-m-d H:i:s');
+
+    try {
+        $db->beginTransaction();
+        $db->prepare("UPDATE association_registration_requests SET status = 'needs_correction', review_note = ?, reviewed_at = ?, reviewed_by = ?, updated_at = ? WHERE id = ?")
+            ->execute([$note, $now, $superAdmin['id'], $now, $id]);
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        error_log('Request correction error: ' . $e->getMessage());
+        jsonResponse(['error' => 'Erreur lors de la demande de correction.'], 500);
+    }
+
+    // Email (best-effort)
+    try {
+        $html = buildCorrectionRequestedHtml($req['association_name'], $note);
+        $r = sendEmail($req['manager_email'], $req['manager_name'] ?: 'Responsable', 'Complément d\'information demandé — ALIKA MOBILITY', $html);
+        error_log('Correction email to ' . $req['manager_email'] . ' | success=' . ($r['success'] ? '1' : '0'));
+    } catch (Throwable $e) {
+        error_log('Correction email error: ' . $e->getMessage());
+    }
+
+    jsonResponse([
+        'success' => true,
+        'message' => 'Correction demandée.',
+        'status' => 'needs_correction',
     ]);
 }

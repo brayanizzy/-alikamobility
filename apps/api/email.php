@@ -298,3 +298,65 @@ function buildNewRegistrationHtml($assocName, $managerName, $managerPhone, $mana
       <p style="font-size:12px;color:#999">Alika Mobility</p>
     </div>';
 }
+
+// =============================================================
+// REV-03.2 — Association registration decision emails
+// =============================================================
+
+function buildAccountApprovedHtml($orgName, $planCode, $subStatus, $loginEmail, $trialDays) {
+    $planLabels = ['starter' => 'Starter', 'pro' => 'Pro', 'premium' => 'Premium', 'enterprise' => 'Enterprise'];
+    $planLabel = $planLabels[$planCode] ?? ucfirst($planCode);
+    $subLabel = ($subStatus === 'trial') ? 'Période d\'essai de ' . $trialDays . ' jours' : 'Abonnement actif';
+    return '
+    <div style="font-family:sans-serif;max-width:560px;margin:24px auto;background:#fff;border-radius:16px;padding:32px">
+      <div style="background:#16A34A;color:#fff;font-size:12px;font-weight:bold;padding:4px 12px;border-radius:20px;display:inline-block">Compte validé</div>
+      <h1 style="color:#1a1a2e;font-size:24px;margin:16px 0 8px">Votre compte ALIKA MOBILITY est validé</h1>
+      <p style="color:#555;line-height:1.6">Félicitations ! Votre association <strong>' . htmlspecialchars($orgName) . '</strong> a été approuvée par notre équipe.</p>
+      <div style="background:#f8f9fa;border-radius:12px;padding:20px;margin:20px 0">
+        <p style="margin:0 0 8px;font-weight:bold;color:#1a1a2e">Votre abonnement :</p>
+        <p style="margin:0;color:#555">Forfait : <strong>' . htmlspecialchars($planLabel) . '</strong></p>
+        <p style="margin:4px 0 0;color:#555">Statut : <strong>' . htmlspecialchars($subLabel) . '</strong></p>
+        <p style="margin:4px 0 0;color:#555">Email de connexion : <strong>' . htmlspecialchars($loginEmail) . '</strong></p>
+      </div>
+      <p style="color:#555;line-height:1.6">Vous pouvez dès à présent accéder à votre tableau de bord pour configurer votre association, ajouter vos membres et commencer vos encaissements.</p>
+      <a href="https://alikamobility.alika-konnect.com/login" style="display:block;text-align:center;background:#1A237E;color:#fff;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:bold;margin:24px 0">Accéder à mon tableau de bord</a>
+      <hr style="border:none;border-top:1px solid #eee;margin-top:24px" />
+      <p style="font-size:12px;color:#999">Alika Mobility — Application de gestion de transport<br>Kinshasa, RDC</p>
+    </div>';
+}
+
+function buildAccountRejectedHtml($orgName, $reason) {
+    return '
+    <div style="font-family:sans-serif;max-width:560px;margin:24px auto;background:#fff;border-radius:16px;padding:32px">
+      <div style="background:#EF4444;color:#fff;font-size:12px;font-weight:bold;padding:4px 12px;border-radius:20px;display:inline-block">Demande refusée</div>
+      <h1 style="color:#1a1a2e;font-size:24px;margin:16px 0 8px">Votre demande n\'a pas été approuvée</h1>
+      <p style="color:#555;line-height:1.6">Bonjour,</p>
+      <p style="color:#555;line-height:1.6">Nous avons examiné votre demande d\'inscription pour l\'association <strong>' . htmlspecialchars($orgName) . '</strong>.</p>
+      <div style="background:#fef2f2;border-radius:12px;padding:20px;margin:20px 0;border:1px solid #fecaca">
+        <p style="margin:0 0 4px;font-weight:bold;color:#dc2626">Motif du refus :</p>
+        <p style="margin:0;color:#555">' . htmlspecialchars($reason) . '</p>
+      </div>
+      <p style="color:#555;line-height:1.6">Si vous pensez qu\'il s\'agit d\'une erreur ou si vous souhaitez fournir des informations complémentaires, vous pouvez contacter notre équipe support à <a href="mailto:support@alika-konnect.com">support@alika-konnect.com</a>.</p>
+      <p style="color:#555;line-height:1.6">Vous pourrez soumettre une nouvelle demande ultérieurement.</p>
+      <hr style="border:none;border-top:1px solid #eee;margin-top:24px" />
+      <p style="font-size:12px;color:#999">Alika Mobility — Application de gestion de transport<br>Kinshasa, RDC</p>
+    </div>';
+}
+
+function buildCorrectionRequestedHtml($orgName, $note) {
+    return '
+    <div style="font-family:sans-serif;max-width:560px;margin:24px auto;background:#fff;border-radius:16px;padding:32px">
+      <div style="background:#F59E0B;color:#fff;font-size:12px;font-weight:bold;padding:4px 12px;border-radius:20px;display:inline-block">Complément d\'information</div>
+      <h1 style="color:#1a1a2e;font-size:24px;margin:16px 0 8px">Informations complémentaires demandées</h1>
+      <p style="color:#555;line-height:1.6">Bonjour,</p>
+      <p style="color:#555;line-height:1.6">Nous avons besoin d\'informations supplémentaires pour finaliser l\'examen de votre demande pour l\'association <strong>' . htmlspecialchars($orgName) . '</strong>.</p>
+      <div style="background:#fefce8;border-radius:12px;padding:20px;margin:20px 0;border:1px solid #fde68a">
+        <p style="margin:0 0 4px;font-weight:bold;color:#b45309">Note de notre équipe :</p>
+        <p style="margin:0;color:#555">' . htmlspecialchars($note) . '</p>
+      </div>
+      <p style="color:#555;line-height:1.6">Merci de soumettre une nouvelle demande avec les informations corrigées.</p>
+      <a href="https://alikamobility.alika-konnect.com/register-association" style="display:inline-block;background:#1A237E;color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:bold;margin-top:8px">Soumettre une nouvelle demande</a>
+      <hr style="border:none;border-top:1px solid #eee;margin-top:24px" />
+      <p style="font-size:12px;color:#999">Alika Mobility — Application de gestion de transport<br>Kinshasa, RDC</p>
+    </div>';
+}
