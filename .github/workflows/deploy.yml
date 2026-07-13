@@ -1,0 +1,47 @@
+name: Deploy to Hostinger
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Deploy via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+          server: ${{ secrets.SFTP_HOST }}
+          port: ${{ secrets.SFTP_PORT }}
+          username: ${{ secrets.SFTP_USER }}
+          privateKey: ${{ secrets.SFTP_PRIVATE_KEY }}
+          local_path: ./dist/apps/web/*
+          remote_path: ${{ secrets.SFTP_REMOTE_DIR }}
+          sftpOnly: true
+
+      - name: Deploy API via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+          server: ${{ secrets.SFTP_HOST }}
+          port: ${{ secrets.SFTP_PORT }}
+          username: ${{ secrets.SFTP_USER }}
+          privateKey: ${{ secrets.SFTP_PRIVATE_KEY }}
+          local_path: ./apps/api/*
+          remote_path: ${{ secrets.SFTP_REMOTE_DIR }}/api
+          sftpOnly: true
+          exclude: .env.local,.env

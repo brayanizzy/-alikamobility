@@ -11,6 +11,8 @@ require_once __DIR__ . '/reports.php';
 require_once __DIR__ . '/account-lifecycle.php';
 require_once __DIR__ . '/association-registration.php';
 require_once __DIR__ . '/health.php';
+require_once __DIR__ . '/subscriptions.php';
+require_once __DIR__ . '/deploy.php';
 
 $allowedOrigin = getAllowedOrigin();
 header('Access-Control-Allow-Origin: ' . $allowedOrigin);
@@ -74,7 +76,12 @@ try {
         'POST /public/association-registrations' => 'handleAssociationRegistration',
         'GET /association-registration-requests' => 'handleAssociationRegistrationRequestsList',
         // REV-03.2 — Approve/reject/request-correction (dynamic ID in block below)
+        // REV-03.3 — Subscription management
+        'GET /subscriptions' => 'handleSubscriptionsList',
+        'GET /my-subscription' => 'handleMySubscription',
         'GET /health' => 'handleHealth',
+        // Deploy webhook
+        'POST /deploy/trigger' => 'handleDeployTrigger',
     ];
 
     $key = "$method $path";
@@ -111,6 +118,24 @@ try {
         if ($action === 'approve') handleAssociationRegistrationApprove($m[1]);
         elseif ($action === 'reject') handleAssociationRegistrationReject($m[1]);
         elseif ($action === 'request-correction') handleAssociationRegistrationRequestCorrection($m[1]);
+        exit;
+    }
+
+    // REV-03.3 — Subscription management by org_id
+    if (preg_match('#^/subscriptions/([a-zA-Z0-9=_+-]+)$#', $path, $m)) {
+        if ($method === 'GET') handleSubscriptionDetail($m[1]);
+        else jsonResponse(['error' => 'Method not allowed'], 405);
+        exit;
+    }
+    if (preg_match('#^/subscriptions/([a-zA-Z0-9=_+-]+)/(change-plan|activate|extend-trial|expire|suspend|reactivate)$#', $path, $m)) {
+        if ($method !== 'POST') { jsonResponse(['error' => 'Method not allowed'], 405); exit; }
+        $action = $m[2];
+        if ($action === 'change-plan') handleChangePlan($m[1]);
+        elseif ($action === 'activate') handleActivateSubscription($m[1]);
+        elseif ($action === 'extend-trial') handleExtendTrial($m[1]);
+        elseif ($action === 'expire') handleExpireSubscription($m[1]);
+        elseif ($action === 'suspend') handleSuspendOrganization($m[1]);
+        elseif ($action === 'reactivate') handleReactivateOrganization($m[1]);
         exit;
     }
 
