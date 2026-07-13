@@ -27,6 +27,11 @@ const ReceiptsPage = () => {
   const fetchReceipts = useCallback(async () => {
     try {
       setLoading(true); setError(null);
+      if (!orgId) {
+        setReceipts([]);
+        setTotalItems(0);
+        return;
+      }
       const filterParts = [`organization_id = "${orgId}"`];
       const res = await pb.collection('receipts').getList(page, perPage, {
         filter: filterParts.join(' && '), sort: '-created', $autoCancel: false,

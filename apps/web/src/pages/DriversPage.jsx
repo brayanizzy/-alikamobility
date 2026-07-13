@@ -41,6 +41,13 @@ const DriversPage = () => {
       setLoading(true);
       setError(null);
 
+      if (!orgId) {
+        setDrivers([]);
+        setMembers({});
+        setTotalItems(0);
+        return;
+      }
+
       const filterParts = [`organization_id = "${orgId}"`];
       if (statusFilter) filterParts.push(`status = "${statusFilter}"`);
 

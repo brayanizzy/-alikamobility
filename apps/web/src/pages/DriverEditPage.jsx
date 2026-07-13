@@ -128,9 +128,11 @@ const DriverEditPage = () => {
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Catégorie Permis</label>
                     <select value={form.license_category} onChange={(e) => handleChange('license_category', e.target.value)}
                       className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all">
-                      {['A', 'B', 'C', 'D', 'E', 'F'].map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
+                      <option value="A">A — Moto</option>
+                      <option value="B">B — Voiture légère</option>
+                      <option value="C">C — Camion</option>
+                      <option value="D">D — Bus / transport de personnes</option>
+                      <option value="E">E — Remorque / catégorie spéciale</option>
                     </select>
                   </div>
                 </div>

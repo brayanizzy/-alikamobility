@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import pb from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import { Search, X, Loader2, User } from 'lucide-react';
+import { Search, X, Loader2, User, Plus } from 'lucide-react';
 
 const MemberSelector = ({ onSelect, selectedMember, orgId, excludeMemberIds = [], placeholder = 'Rechercher un membre...' }) => {
   const { currentUser } = useAuth();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -24,12 +26,19 @@ const MemberSelector = ({ onSelect, selectedMember, orgId, excludeMemberIds = []
   useEffect(() => {
     if (!query || query.length < 2) {
       setResults([]);
+      setFetchError(null);
       setOpen(false);
       return;
     }
+    setFetchError(null);
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
+        if (!organizationId) {
+          setResults([]);
+          setFetchError('Aucune organisation associée.');
+          return;
+        }
         const filter = `organization_id = "${organizationId}" && (name ~ "${query}" || phone ~ "${query}" || code_member ~ "${query}")`;
         const res = await pb.collection('members').getList(1, 10, { filter, sort: 'name', $autoCancel: false });
 
@@ -41,12 +50,13 @@ const MemberSelector = ({ onSelect, selectedMember, orgId, excludeMemberIds = []
         setOpen(true);
       } catch {
         setResults([]);
+        setFetchError('Erreur de recherche. Vérifiez votre connexion.');
       } finally {
         setLoading(false);
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [query, organizationId, excludeMemberIds]);
+  }, [query, organizationId]);
 
   const handleSelect = (member) => {
     onSelect(member);
@@ -108,7 +118,11 @@ const MemberSelector = ({ onSelect, selectedMember, orgId, excludeMemberIds = []
 
       {open && !loading && query.length >= 2 && results.length === 0 && (
         <div className="absolute z-50 mt-1 w-full bg-card border border-border rounded-xl shadow-modal p-4 text-center">
-          <p className="text-sm text-muted-foreground">Aucun membre trouvé</p>
+          <p className="text-sm text-muted-foreground mb-3">{fetchError || 'Aucun membre trouvé'}</p>
+          <Link to="/members/new"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary/80 transition-colors">
+            <Plus className="w-3.5 h-3.5" /> Créer un nouveau membre
+          </Link>
         </div>
       )}
     </div>

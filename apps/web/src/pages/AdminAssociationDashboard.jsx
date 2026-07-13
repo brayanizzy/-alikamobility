@@ -42,6 +42,8 @@ function SkeletonCard({ className = '' }) {
 
 const AdminAssociationDashboard = () => {
   const { currentUser } = useAuth();
+  const [orgName, setOrgName] = useState('');
+  const [presidentName, setPresidentName] = useState('');
   const [stats, setStats] = useState({
     members: 0, todayPayments: 0, todayRevenue: 0, arrieres: 0,
     recoveryRate: 0, activeMembers: 0,
@@ -61,6 +63,10 @@ const AdminAssociationDashboard = () => {
     else setIsRefreshing(true);
     try {
       const orgId = currentUser.organization_id;
+      if (!orgId) {
+        setError("Organisation non trouvée. Contactez l'assistance.");
+        return;
+      }
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -68,6 +74,18 @@ const AdminAssociationDashboard = () => {
       const sevenDaysAgo = new Date(today);
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+      // Charger le nom de l'org et du président
+      try {
+        const org = await pb.collection('organizations').getOne(orgId, { $autoCancel: false }).catch(() => null);
+        if (org) {
+          setOrgName(org.name || '');
+          setPresidentName(org.manager_name || currentUser?.name || '');
+        } else {
+          setOrgName('');
+          setPresidentName(currentUser?.name || '');
+        }
+      } catch { /* ignore */ }
 
       const [
         membersRes, paymentsRes, membersList, parkingsRes, usersRes,
@@ -308,8 +326,14 @@ const AdminAssociationDashboard = () => {
           >
             <motion.div variants={item} className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
               <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight mb-2">Tableau de Bord</h1>
-                <p className="text-muted-foreground text-lg">Performances et métriques de votre organisation.</p>
+                <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight mb-2">
+                  {(() => {
+                    const h = new Date().getHours();
+                    const greeting = h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
+                    return `${greeting} ${presidentName || 'Admin'}`;
+                  })()}
+                </h1>
+                <p className="text-muted-foreground text-lg">{orgName ? `Bienvenue sur le tableau de bord de ${orgName}.` : 'Performances et métriques de votre organisation.'}</p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <button onClick={() => fetchData(true)}

@@ -28,6 +28,11 @@ const LinesPage = () => {
   const fetchLines = useCallback(async () => {
     try {
       setLoading(true); setError(null);
+      if (!orgId) {
+        setLines([]);
+        setTotalItems(0);
+        return;
+      }
       const filterParts = [`organization_id = "${orgId}"`];
       if (statusFilter) filterParts.push(`status = "${statusFilter}"`);
       const res = await pb.collection('lines').getList(page, perPage, {

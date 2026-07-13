@@ -103,9 +103,17 @@ cd apps/web && npm run dev              # Dev server (port 3000)
 cd apps/web && npm run build            # Production build
 npm run build                           # Build depuis la racine
 
-# Déploiement
-SFTP_PASS="..." node deploy-sftp.mjs    # Déploiement vers Hostinger
-SFTP_PASS="..." node deploy-optimized.mjs
+# Tests
+npm run test                            # Tests unitaires (vitest)
+npm run php-lint                        # PHP lint
+npm run check:secrets                   # Secret scanner
+npm run check:all                       # Tout (secret scan + php-lint + tests + build)
+
+# Déploiement Hostinger (SFTP)
+SFTP_KEY_PATH="~/.ssh/ma_cle" node deploy-full.mjs  # Full (frontend + backend)
+# Déploiement Hostinger (webhook — après push GitHub)
+curl -X POST https://alikamobility.alika-konnect.com/api/deploy/trigger \
+  -H "Authorization: Bearer VOTRE_TOKEN"
 ```
 
 ---
@@ -130,6 +138,7 @@ SFTP_PASS="..." node deploy-optimized.mjs
 - Module 9: Rapports PDF/Excel avancés ✅
 - Module 9.1: Validation fonctionnelle rapports ✅
 - Module 9.2: Fix auth session persistence ✅
+- CLEAN-01: Suppression legacy signup, page 404, bugs UI ✅
 
 ---
 
@@ -772,3 +781,81 @@ SFTP_PASS="..." node deploy-optimized.mjs
 **Fichiers modifiés (2) :**
 - `apps/web/src/pages/SuperAdminDashboard.jsx` — fix `setOrganizations()` + `generateTempPassword()`
 - `deploy-full.mjs` — filtre `.env.local` dans `uploadDir` API (cause racine perte .env.local)
+
+### Session 25 — 13/07/2026 (CLEAN-01 — Suppression legacy signup, page 404, bugs UI)
+
+- **Suppression du flux d'inscription legacy `/signup`** :
+  - `apps/api/auth.php` : `handleSignup()` désactivé → retour 410 Gone avec message invitant à utiliser `/register-association`
+  - `apps/web/src/App.jsx` : route `/signup` redirige vers `/register-association` (via `<Navigate>`)
+  - Tous les liens `/signup` remplacés par `/register-association` dans `LandingNavbar.jsx` (2 liens), `LandingFooter.jsx`, `Header.jsx`
+- **Création de la page 404** :
+  - `NotFoundPage.jsx` — page introuvable avec design sobre (404 large, titre, message, boutons "Tableau de bord" ou "Connexion" selon état auth)
+  - `App.jsx` : catch-all `*` → `NotFoundPage` (était `HomePage`, qui bouclait sur elle-même)
+- **Corrections bugs UI** (3) :
+  - `roles.js` : encoding corrompu `R├®cup├®rateur terrain` → `Récupérateur terrain`, `R├®colteur bureau` → `Récolteur bureau`
+  - `AdminAssociationDashboard.jsx` : 3 ComingSoon retirés → Chauffeurs lié vers `/drivers`, Véhicules vers `/vehicles`, Dettes vers `/debts`
+  - `SuperAdminDashboard.jsx` : ComingSoon Utilisateurs retiré → lien direct `/users`
+  - `navigation.js` : Agents corrigé de `/users` vers `/agents` ; Dettes : lien direct (plus comingSoon)
+- **Build** : 2959 modules, 0 erreurs ✅
+- **Tests** : 9/9 ✅
+- **Secret scan** : 0 nouveau problème (6 faux positifs pré-existants dans check-secrets.mjs)
+- **Push GitHub** : commit `4fb4486` pushé vers `origin/master` ✅
+- **Déploiement prod** : reporté (serveur Hostinger non disponible — attend la disponibilité SSH/SFTP)
+- **Commit** : `4fb4486` — "CLEAN-01: Remove legacy signup, add 404 page, fix encoding/navigation/comingSoon"
+
+**Fichiers créés (1) :**
+- `apps/web/src/pages/NotFoundPage.jsx` — page 404 avec navigation contextuelle
+
+**Fichiers modifiés (9) :**
+- `apps/api/auth.php` — handleSignup() → 410 Gone
+- `apps/web/src/App.jsx` — /signup → redirect /register-association, catch-all → NotFoundPage
+- `apps/web/src/components/Header.jsx` — lien → /register-association
+- `apps/web/src/components/landing/LandingNavbar.jsx` — 2 liens → /register-association
+- `apps/web/src/components/landing/LandingFooter.jsx` — lien → /register-association
+- `apps/web/src/utils/roles.js` — encoding fix (R├®cup├®rateur → Récupérateur)
+- `apps/web/src/pages/AdminAssociationDashboard.jsx` — 3 ComingSoon → liens directs
+- `apps/web/src/pages/SuperAdminDashboard.jsx` — ComingSoon Utilisateurs → lien /users
+- `apps/web/src/config/navigation.js` — Agents /users → /agents, Dettes lien direct
+
+### Session 26 — 13/07/2026 (FIX-LOCAL-01 — Stabilisation métier chauffeurs/propriétaires/finance/dashboard)
+
+- **Dashboard admin — boucle login/dashboard corrigée** :
+  - Ajout guard `orgId` null dans `fetchData` (évite crash Promise.all)
+  - Ajout chargement nom org + président via `organizations.getOne()`
+  - Salutation dynamique : "Bonjour / Bon après-midi / Bonsoir President [Nom]"
+  - Fallback "Admin" si nom président absent
+  - Affichage "Bienvenue sur le tableau de bord de [Org]" si nom org disponible
+- **DriversPage** : guard `orgId` null → liste vide propre (plus "Impossible de charger")
+- **OwnersPage** : guard `orgId` null → liste vide propre
+- **ReceiptsPage** : guard `orgId` null → message "Aucun reçu"
+- **LinesPage** : guard `orgId` null → liste vide propre
+- **DriverCreatePage** : catégorie permis légendée (`A — Moto`, `B — Voiture`, `C — Camion`, `D — Bus`, `E — Remorque`)
+- **DriverEditPage** : idem catégorie permis légendée
+- **MemberSelector** (recherche membre) :
+  - Ajout message d'erreur réseau "Erreur de recherche. Vérifiez votre connexion."
+  - Ajout guard `organizationId` manquant
+  - Ajout lien "Créer un nouveau membre" quand aucun résultat
+  - Suppression dépendance `excludeMemberIds` (causait re-rendus inutiles)
+- **AuthContext** : suppression option `$autoCancel: false` inutile
+- **CSS (index.css)** :
+  - `html { overflow-y: auto; overflow-x: hidden; }`
+  - `body { overflow: hidden; width: 100%; height: 100%; }`
+  - `#root { width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; }`
+  - Corrige double barre de défilement sur toutes les pages
+- **Build** : 2959 modules, 0 erreurs ✅
+- **Tests** : 9/9 ✅
+- **Secret scan** : 0 nouveau problème
+- **Push GitHub** : commit pushé vers `origin/master` ✅
+
+**Fichiers modifiés (11) :**
+- `apps/web/src/pages/AdminAssociationDashboard.jsx` — org loading + bienvenue président + guard null
+- `apps/web/src/pages/DriversPage.jsx` — guard orgId null
+- `apps/web/src/pages/OwnersPage.jsx` — guard orgId null
+- `apps/web/src/pages/ReceiptsPage.jsx` — guard orgId null
+- `apps/web/src/pages/LinesPage.jsx` — guard orgId null
+- `apps/web/src/pages/DriverCreatePage.jsx` — catégories permis légendées
+- `apps/web/src/pages/DriverEditPage.jsx` — catégories permis légendées
+- `apps/web/src/components/people/MemberSelector.jsx` — erreur réseau + lien création membre
+- `apps/web/src/contexts/AuthContext.jsx` — nettoyage option inutile
+- `apps/web/src/index.css` — fix double scroll (html/body/root overflow)
+- `AGENTS.md` — mise à jour session log

@@ -57,9 +57,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const authData = await pb.collection('users').authWithPassword(email, password, {
-        $autoCancel: false,
-      });
+      const authData = await pb.collection('users').authWithPassword(email, password);
       setCurrentUser(authData.record);
       setIsAuthenticated(true);
       return authData;

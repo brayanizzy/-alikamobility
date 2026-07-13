@@ -39,6 +39,13 @@ const OwnersPage = () => {
       setLoading(true);
       setError(null);
 
+      if (!orgId) {
+        setOwners([]);
+        setMembers({});
+        setTotalItems(0);
+        return;
+      }
+
       const res = await pb.collection('owners').getList(page, perPage, {
         filter: `organization_id = "${orgId}"`,
         sort: '-created',
