@@ -21,7 +21,7 @@ export const NAV_ITEMS = {
       { label: 'Membres', path: '/members', icon: Users },
       { label: 'Paiements', path: '/payment-history', icon: DollarSign },
       { label: 'Parkings', path: '/parkings', icon: MapPin },
-      { label: 'Agents', path: '/users', icon: UserCog },
+      { label: 'Agents', path: '/agents', icon: UserCog },
       { label: 'Rapports', path: '/reports', icon: BarChart3 },
       { label: 'Rapport caisse', path: '/reports/cashier', icon: DollarSign },
       { label: 'Notifications', path: '/notifications', icon: Bell },
@@ -80,7 +80,7 @@ export const QUICK_ACTIONS = {
   office_collector: [
     { label: 'Paiements', path: '/payment-history', icon: CreditCard },
     { label: 'Membres', path: '/members', icon: Users },
-    { label: 'Dettes', path: '/coming-soon/debts', icon: BookOpen, comingSoon: true },
+    { label: 'Dettes', path: '/debts', icon: BookOpen },
     { label: 'Notifications', path: '/notifications', icon: Bell },
   ],
 };

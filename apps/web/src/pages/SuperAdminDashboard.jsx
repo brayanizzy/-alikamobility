@@ -325,7 +325,7 @@ const SuperAdminDashboard = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <QuickActionCard icon={Plus} title="Créer Organisation" color="primary" href="#new-org" />
                     <QuickActionCard icon={Building2} title="Voir Organisations" color="secondary" href="#" />
-                    <QuickActionCard icon={Users} title="Utilisateurs" color="blue" comingSoon />
+                    <QuickActionCard icon={Users} title="Utilisateurs" href="/users" color="blue" />
                     <QuickActionCard icon={Car} title="Types Véhicules" color="purple" comingSoon />
                     <QuickActionCard icon={Bell} title="Notifications" color="emerald" href="/notifications" />
                     <QuickActionCard icon={Settings} title="Paramètres" color="amber" comingSoon />

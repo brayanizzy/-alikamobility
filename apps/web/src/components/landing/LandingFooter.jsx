@@ -39,14 +39,14 @@ const LandingFooter = () => {
               <p className="font-semibold text-foreground mb-3">Accès</p>
               <ul className="space-y-2 text-muted-foreground">
                 <li><Link to="/login" className="hover:text-primary transition-colors">Connexion</Link></li>
-                <li><Link to="/signup" className="hover:text-primary transition-colors">Démo</Link></li>
+                <li><Link to="/register-association" className="hover:text-primary transition-colors">Démo</Link></li>
               </ul>
             </div>
             <div>
               <p className="font-semibold text-foreground mb-3">Support</p>
               <ul className="space-y-2 text-muted-foreground">
                 <li><a href="mailto:support@alika-konnect.com" className="hover:text-primary transition-colors">Support</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Confidentialité</a></li>
+                <li><Link to="/privacy-policy" className="hover:text-primary transition-colors">Confidentialité</Link></li>
               </ul>
             </div>
           </div>

@@ -76,7 +76,7 @@ const Header = () => {
               <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium px-3 py-2">
                 Accueil
               </Link>
-              <Link to="/signup" className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center gap-2">
+              <Link to="/register-association" className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center gap-2">
                 <LayoutDashboard className="w-4 h-4" /> Créer mon association
               </Link>
               <Link to="/login" className="px-5 py-2.5 rounded-lg bg-muted text-foreground font-bold text-sm hover:bg-muted/80 transition-all flex items-center gap-2">

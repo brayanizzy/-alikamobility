@@ -489,9 +489,9 @@ const AdminAssociationDashboard = () => {
                 <QuickActionCard icon={Users} title="Membres" href="/members" color="primary" />
                 <QuickActionCard icon={MapPin} title="Parkings" href="/parkings" color="secondary" />
                 <QuickActionCard icon={FileText} title="Rapports" href="/reports" color="accent" />
-                <QuickActionCard icon={UserCircle} title="Chauffeurs" color="purple" comingSoon />
-                <QuickActionCard icon={Car} title="Véhicules" color="emerald" comingSoon />
-                <QuickActionCard icon={Ban} title="Dettes" color="amber" comingSoon />
+                <QuickActionCard icon={UserCircle} title="Chauffeurs" href="/drivers" color="purple" />
+                <QuickActionCard icon={Car} title="Véhicules" href="/vehicles" color="emerald" />
+                <QuickActionCard icon={Ban} title="Dettes" href="/debts" color="amber" />
               </div>
             </motion.div>
 

@@ -70,7 +70,7 @@ const LandingNavbar = () => {
                 Se connecter
               </Link>
               <Link
-                to="/signup"
+                to="/register-association"
                 className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-md shadow-primary/20 flex items-center gap-2"
               >
                 Demander une démo <ArrowRight className="w-4 h-4" />
@@ -121,7 +121,7 @@ const LandingNavbar = () => {
                   Se connecter
                 </Link>
                 <Link
-                  to="/signup"
+                  to="/register-association"
                   onClick={() => setOpen(false)}
                   className="w-full text-center px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2"
                 >

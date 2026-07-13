@@ -4,8 +4,8 @@
 };
 
 export const AGENT_TYPE_LABELS = {
-  [AGENT_TYPES.FIELD_COLLECTOR]: 'R├®cup├®rateur terrain',
-  [AGENT_TYPES.OFFICE_COLLECTOR]: 'R├®colteur bureau',
+  [AGENT_TYPES.FIELD_COLLECTOR]: 'Récupérateur terrain',
+  [AGENT_TYPES.OFFICE_COLLECTOR]: 'Récolteur bureau',
 };
 
 export const getAgentType = (user) => user?.agent_type || AGENT_TYPES.FIELD_COLLECTOR;
