@@ -859,3 +859,19 @@ curl -X POST https://alikamobility.alika-konnect.com/api/deploy/trigger \
 - `apps/web/src/contexts/AuthContext.jsx` — nettoyage option inutile
 - `apps/web/src/index.css` — fix double scroll (html/body/root overflow)
 - `AGENTS.md` — mise à jour session log
+
+### Session 27 — 13/07/2026 (DRIVERS-01 — Lier véhicule + ligne au chauffeur)
+
+- **DriverCreatePage** : ajout VehicleSelector + LineSelector optionnels après le bloc Notes. À la soumission, création auto d'une `vehicle_assignment` si véhicule ou ligne sélectionné.
+- **DriverEditPage** : ajout VehicleSelector + LineSelector pré-remplis avec l'assignment actif (si existant). À la soumission, mise à jour ou création de l'assignment, ou clôture si désassigné.
+- **DriverDetailPage** : nouvelle carte "Assignation en Cours" affichant le véhicule (plaque, marque, modèle) et la ligne (nom, trajet) avec date de début.
+- **Aucune modification DB** : utilisation de la table `vehicle_assignments` existante.
+- **Build** : 2959 modules, 0 erreurs ✅
+- **Tests** : 9/9 ✅
+- **Secret scan** : 0 nouveau problème
+- **Push GitHub** : commit pushé vers `origin/master` ✅
+
+**Fichiers modifiés (3) :**
+- `apps/web/src/pages/DriverCreatePage.jsx` — VehicleSelector + LineSelector + création assignment
+- `apps/web/src/pages/DriverEditPage.jsx` — VehicleSelector + LineSelector + création/mise à jour assignment
+- `apps/web/src/pages/DriverDetailPage.jsx` — carte assignation avec véhicule + ligne + date

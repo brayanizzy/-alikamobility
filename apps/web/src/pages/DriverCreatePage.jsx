@@ -6,13 +6,17 @@ import Header from '@/components/Header.jsx';
 import AppSidebar from '@/components/AppSidebar.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import MemberSelector from '@/components/people/MemberSelector.jsx';
-import { Loader2, AlertCircle, ArrowLeft, Save, UserCircle } from 'lucide-react';
+import VehicleSelector from '@/components/transport/VehicleSelector.jsx';
+import LineSelector from '@/components/transport/LineSelector.jsx';
+import { Loader2, AlertCircle, ArrowLeft, Save, UserCircle, Truck, Route } from 'lucide-react';
 import { toast } from 'sonner';
 
 const DriverCreatePage = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [selectedMember, setSelectedMember] = useState(null);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [selectedLine, setSelectedLine] = useState(null);
   const [form, setForm] = useState({
     license_number: '',
     license_category: 'B',
@@ -59,7 +63,19 @@ const DriverCreatePage = () => {
         notes: form.notes || null,
       };
 
-      await pb.collection('drivers').create(data, { $autoCancel: false });
+      const driver = await pb.collection('drivers').create(data, { $autoCancel: false });
+
+      if (selectedVehicle || selectedLine) {
+        await pb.collection('vehicle_assignments').create({
+          organization_id: orgId,
+          vehicle_id: selectedVehicle?.id || null,
+          driver_id: driver.id,
+          line_id: selectedLine?.id || null,
+          start_date: new Date().toISOString().split('T')[0],
+          status: 'active',
+        }, { $autoCancel: false });
+      }
+
       toast.success('Chauffeur créé avec succès !');
       navigate('/drivers');
     } catch (err) {
@@ -167,6 +183,30 @@ const DriverCreatePage = () => {
                     <option value="inactive">Inactif</option>
                     <option value="expired">Expiré</option>
                   </select>
+                </div>
+
+                {/* Assignment — Vehicle */}
+                <div className="border-t border-border pt-6">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Truck className="w-4 h-4" /> Assigner un Véhicule <span className="text-[10px] font-normal lowercase text-muted-foreground">(optionnel)</span>
+                  </h3>
+                  <VehicleSelector
+                    onSelect={setSelectedVehicle}
+                    selectedVehicle={selectedVehicle}
+                    placeholder="Rechercher un véhicule par plaque ou marque..."
+                  />
+                </div>
+
+                {/* Assignment — Line */}
+                <div className="pb-2">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Route className="w-4 h-4" /> Assigner une Ligne <span className="text-[10px] font-normal lowercase text-muted-foreground">(optionnel)</span>
+                  </h3>
+                  <LineSelector
+                    onSelect={setSelectedLine}
+                    selectedLine={selectedLine}
+                    placeholder="Rechercher une ligne par nom..."
+                  />
                 </div>
 
                 {/* Notes */}

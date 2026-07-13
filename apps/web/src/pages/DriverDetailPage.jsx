@@ -10,7 +10,7 @@ import PersonRoleBadge from '@/components/people/PersonRoleBadge.jsx';
 import RecentActivityList from '@/components/dashboard/RecentActivityList.jsx';
 import {
   UserCircle, Loader2, AlertCircle, ArrowLeft, Edit, Calendar, Phone,
-  CreditCard, FileText, Activity, Shield
+  CreditCard, FileText, Activity, Shield, Truck, Route, MapPin
 } from 'lucide-react';
 import { formatCurrency } from '@/utils/currency.js';
 
@@ -20,6 +20,9 @@ const DriverDetailPage = () => {
   const navigate = useNavigate();
   const [driver, setDriver] = useState(null);
   const [member, setMember] = useState(null);
+  const [assignment, setAssignment] = useState(null);
+  const [assignedVehicle, setAssignedVehicle] = useState(null);
+  const [assignedLine, setAssignedLine] = useState(null);
   const [recentPayments, setRecentPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -46,6 +49,26 @@ const DriverDetailPage = () => {
             amount: p.amount,
             created: p.created,
           })));
+        }
+
+        const assignmentsRes = await pb.collection('vehicle_assignments').getList(1, 1, {
+          filter: `driver_id = "${driverRes.id}" && status = "active"`,
+          sort: '-created',
+          $autoCancel: false,
+        });
+        const activeAssignment = (assignmentsRes.items || [])[0];
+        if (activeAssignment) {
+          setAssignment(activeAssignment);
+          const [vRes, lRes] = await Promise.all([
+            activeAssignment.vehicle_id
+              ? pb.collection('vehicles').getOne(activeAssignment.vehicle_id, { $autoCancel: false }).catch(() => null)
+              : Promise.resolve(null),
+            activeAssignment.line_id
+              ? pb.collection('lines').getOne(activeAssignment.line_id, { $autoCancel: false }).catch(() => null)
+              : Promise.resolve(null),
+          ]);
+          setAssignedVehicle(vRes);
+          setAssignedLine(lRes);
         }
       } catch (err) {
         console.error(err);
@@ -200,6 +223,50 @@ const DriverDetailPage = () => {
                       <StatusBadge status={member.status} />
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Vehicle & Line Assignment */}
+              {assignment && (
+                <div className="bg-card border border-border rounded-2xl p-6 shadow-card">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Truck className="w-4 h-4" /> Assignation en Cours
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {assignedVehicle && (
+                      <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/30">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+                          <Truck className="w-5 h-5 text-emerald-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{assignedVehicle.plate || assignedVehicle.moto_number || 'N/A'}</p>
+                          <p className="text-[11px] text-muted-foreground">{assignedVehicle.brand} {assignedVehicle.model}</p>
+                          {assignedVehicle.vehicle_type_id && (
+                            <p className="text-[11px] text-muted-foreground">Type: {assignedVehicle.vehicle_type_id}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {assignedLine && (
+                      <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/30">
+                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+                          <Route className="w-5 h-5 text-blue-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{assignedLine.name}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {assignedLine.departure || assignedLine.start_point || '?'} → {assignedLine.arrival || assignedLine.end_point || '?'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {assignment.start_date && (
+                    <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      Depuis le {new Date(assignment.start_date).toLocaleDateString('fr-FR')}
+                    </p>
+                  )}
                 </div>
               )}
 

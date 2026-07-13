@@ -5,11 +5,15 @@ import pb from '@/lib/apiClient';
 import Header from '@/components/Header.jsx';
 import AppSidebar from '@/components/AppSidebar.jsx';
 import StatusBadge from '@/components/StatusBadge.jsx';
-import { Loader2, AlertCircle, ArrowLeft, Save, UserCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext.jsx';
+import VehicleSelector from '@/components/transport/VehicleSelector.jsx';
+import LineSelector from '@/components/transport/LineSelector.jsx';
+import { Loader2, AlertCircle, ArrowLeft, Save, UserCircle, Truck, Route } from 'lucide-react';
 import { toast } from 'sonner';
 
 const DriverEditPage = () => {
   const { id } = useParams();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     license_number: '',
@@ -20,6 +24,9 @@ const DriverEditPage = () => {
     notes: '',
   });
   const [memberName, setMemberName] = useState('');
+  const [assignment, setAssignment] = useState(null);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [selectedLine, setSelectedLine] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -39,6 +46,26 @@ const DriverEditPage = () => {
         if (d.member_id) {
           const m = await pb.collection('members').getOne(d.member_id, { $autoCancel: false });
           setMemberName(m.name || '');
+        }
+
+        const assignmentsRes = await pb.collection('vehicle_assignments').getList(1, 1, {
+          filter: `driver_id = "${d.id}" && status = "active"`,
+          sort: '-created',
+          $autoCancel: false,
+        });
+        const activeAssignment = (assignmentsRes.items || [])[0];
+        if (activeAssignment) {
+          setAssignment(activeAssignment);
+          const [vRes, lRes] = await Promise.all([
+            activeAssignment.vehicle_id
+              ? pb.collection('vehicles').getOne(activeAssignment.vehicle_id, { $autoCancel: false }).catch(() => null)
+              : Promise.resolve(null),
+            activeAssignment.line_id
+              ? pb.collection('lines').getOne(activeAssignment.line_id, { $autoCancel: false }).catch(() => null)
+              : Promise.resolve(null),
+          ]);
+          if (vRes) setSelectedVehicle(vRes);
+          if (lRes) setSelectedLine(lRes);
         }
       } catch (err) {
         console.error(err);
@@ -67,6 +94,25 @@ const DriverEditPage = () => {
         status: form.status,
         notes: form.notes || null,
       }, { $autoCancel: false });
+
+      if (selectedVehicle || selectedLine) {
+        const assignData = {
+          organization_id: currentUser?.organization_id,
+          driver_id: id,
+          vehicle_id: selectedVehicle?.id || null,
+          line_id: selectedLine?.id || null,
+          start_date: assignment?.start_date || new Date().toISOString().split('T')[0],
+          status: 'active',
+        };
+        if (assignment) {
+          await pb.collection('vehicle_assignments').update(assignment.id, assignData, { $autoCancel: false });
+        } else {
+          await pb.collection('vehicle_assignments').create(assignData, { $autoCancel: false });
+        }
+      } else if (assignment) {
+        await pb.collection('vehicle_assignments').update(assignment.id, { status: 'ended', end_date: new Date().toISOString().split('T')[0] }, { $autoCancel: false });
+      }
+
       toast.success('Chauffeur modifié avec succès !');
       navigate(`/drivers/${id}`);
     } catch (err) {
@@ -165,6 +211,30 @@ const DriverEditPage = () => {
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Notes</label>
                   <textarea value={form.notes} onChange={(e) => handleChange('notes', e.target.value)} rows={3}
                     className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all resize-none" />
+                </div>
+
+                {/* Assignment — Vehicle */}
+                <div className="border-t border-border pt-6">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Truck className="w-4 h-4" /> Véhicule Assigné
+                  </h3>
+                  <VehicleSelector
+                    onSelect={setSelectedVehicle}
+                    selectedVehicle={selectedVehicle}
+                    placeholder="Rechercher un véhicule par plaque ou marque..."
+                  />
+                </div>
+
+                {/* Assignment — Line */}
+                <div className="pb-2">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Route className="w-4 h-4" /> Ligne Assignée
+                  </h3>
+                  <LineSelector
+                    onSelect={setSelectedLine}
+                    selectedLine={selectedLine}
+                    placeholder="Rechercher une ligne par nom..."
+                  />
                 </div>
 
                 <button type="submit" disabled={submitting}
